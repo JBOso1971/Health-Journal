@@ -1,6 +1,6 @@
 // Service Worker — cache app shell for offline load
-const CACHE = 'jb-health-v1';
-const SHELL = ['/', '/index.html', '/manifest.json'];
+const CACHE = 'jb-health-v2';
+const SHELL = ['/Health-Journal/', '/Health-Journal/index.html', '/Health-Journal/manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL).catch(() => {})));
