@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>JB Health Journal</title>
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a; --card: #1e293b; --card2: #253147; --border: #334155;
+      --text: #e2e8f0; --text2: #94a3b8; --green: #10b981; --green-dim: #052e16;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
+    #app { max-width: 480px; margin: 0 auto;
+      padding: 0 16px calc(32px + env(safe-area-inset-bottom)); }
+
+    /* Header */
+    header { display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 0 20px; position: sticky; top: 0; background: var(--bg); z-index: 10; }
+    .logo { font-size: 18px; font-weight: 700; }
+    .header-dt { font-size: 12px; color: var(--text2); text-align: right; line-height: 1.5; }
+
+    /* Status */
+    #status { padding: 10px 14px; border-radius: 10px; margin-bottom: 14px;
+      font-size: 14px; font-weight: 500; display: none; }
+    .s-ok  { background: #052e16; color: #6ee7b7; display: block !important; }
+    .s-err { background: #450a0a; color: #fca5a5; display: block !important; }
+
+    /* Cards */
+    .card { background: var(--card); border-radius: 16px; padding: 18px; margin-bottom: 14px;
+      border: 1px solid var(--border); }
+
+    /* Fasting card */
+    .fast-card.on { border-color: var(--green);
+      background: linear-gradient(135deg, #1e293b 0%, #052e16 100%); }
+    .fast-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .fast-title { font-size: 17px; font-weight: 600; flex: 1; }
+    .badge { font-size: 11px; font-weight: 700; letter-spacing: 1px;
+      padding: 3px 10px; border-radius: 20px; background: var(--border); color: var(--text2); }
+    .badge.on { background: var(--green); color: #fff; }
+    #fast-timer { font-size: 44px; font-weight: 700; color: var(--green);
+      font-variant-numeric: tabular-nums; letter-spacing: -2px;
+      font-family: 'SF Mono', monospace; display: none; margin: 4px 0 8px; }
+    #fast-meta { font-size: 13px; color: var(--text2); margin-bottom: 14px; min-height: 18px; }
+    .fast-btns { display: flex; gap: 10px; }
+
+    /* Buttons */
+    .btn { flex: 1; padding: 13px; border-radius: 12px; font-size: 15px;
+      font-weight: 600; border: none; cursor: pointer; transition: opacity .15s; }
+    .btn:active { opacity: .75; }
+    .btn-green { background: var(--green); color: #fff; }
+    .btn-red   { background: #450a0a; color: #fca5a5; }
+    .btn-gray  { background: var(--card2); color: var(--text); }
+
+    /* Section label */
+    .sec { font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--text2); margin: 20px 0 10px; }
+
+    /* Quick log grid */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
+    .qbtn { background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 15px 12px; display: flex; flex-direction: column; align-items: flex-start;
+      gap: 6px; cursor: pointer; transition: transform .12s; position: relative; overflow: hidden; }
+    .qbtn::before { content: ''; position: absolute; top: 0; left: 0;
+      width: 3px; height: 100%; background: var(--c); border-radius: 14px 0 0 14px; }
+    .qbtn:active { transform: scale(.96); }
+    .qi { font-size: 20px; }
+    .ql { font-size: 13px; font-weight: 500; color: var(--text); text-align: left; line-height: 1.2; }
+
+    /* Recent entries */
+    .entries { display: flex; flex-direction: column; gap: 8px; }
+    .entry { background: var(--card); border-radius: 12px; padding: 13px;
+      display: flex; align-items: flex-start; gap: 12px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+    .ec { flex: 1; min-width: 0; }
+    .et { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .ed { font-size: 12px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .etime { font-size: 11px; color: var(--text2); white-space: nowrap; margin-top: 1px; }
+    .empty { text-align: center; color: var(--text2); padding: 28px; font-size: 14px; }
+
+    /* Modal */
+    #overlay { position: fixed; inset: 0; background: rgba(0,0,0,.65);
+      backdrop-filter: blur(3px); z-index: 50; display: flex;
+      align-items: flex-end; display: none; }
+    #overlay.show { display: flex; }
+    #modal { background: var(--card); border-radius: 20px 20px 0 0; width: 100%;
+      max-height: 88vh; overflow-y: auto;
+      padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+    .drag { width: 36px; height: 4px; background: var(--border);
+      border-radius: 2px; margin: 12px auto 0; }
+    .mhead { display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 20px 4px; position: sticky; top: 0; background: var(--card); }
+    .mtitle { font-size: 19px; font-weight: 700; }
+    .mclose { background: var(--card2); border: none; color: var(--text);
+      width: 30px; height: 30px; border-radius: 50%; font-size: 13px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .mbody { padding: 12px 20px 0; }
+
+    /* Form */
+    .fg { margin-bottom: 15px; }
+    .fl { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .5px; color: var(--text2); margin-bottom: 7px; }
+    .fi, .fsel, .fta { width: 100%; background: var(--card2); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text); font-size: 16px; padding: 11px 13px;
+      outline: none; font-family: inherit; }
+    .fi:focus, .fsel:focus, .fta:focus { border-color: var(--green); }
+    .fsel option { background: var(--card2); }
+    .fta { min-height: 80px; resize: none; }
+
+    /* Pills */
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill { padding: 7px 14px; border-radius: 20px; border: 2px solid var(--border);
+      background: transparent; color: var(--text); font-size: 14px;
+      font-weight: 500; cursor: pointer; transition: all .12s; }
+    .pill.sel { border-color: var(--green); background: var(--green-dim); color: var(--green); }
+
+    /* Number picker */
+    .numrow { display: flex; align-items: center; gap: 12px; }
+    .nmbtn { width: 44px; height: 44px; border-radius: 50%; border: none;
+      background: var(--card2); color: var(--text); font-size: 24px;
+      cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .nmval { flex: 1; text-align: center; font-size: 30px; font-weight: 700; }
+
+    /* Supplement list */
+    .suplist { display: flex; flex-direction: column; gap: 7px; }
+    .supitem { display: flex; align-items: center; gap: 12px; background: var(--card2);
+      padding: 11px 13px; border-radius: 10px; cursor: pointer; }
+    .supitem input { width: 18px; height: 18px; accent-color: var(--green); cursor: pointer; }
+    .supname { font-size: 14px; flex: 1; }
+    .supdose { font-size: 12px; color: var(--text2); }
+
+    /* Save button */
+    .savebtn { width: 100%; padding: 15px; border-radius: 13px; font-size: 16px;
+      font-weight: 700; border: none; cursor: pointer; background: var(--green);
+      color: #fff; margin-top: 18px; transition: opacity .15s; }
+    .savebtn:active { opacity: .8; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo">🏃 Health Journal</div>
+    <div class="header-dt" id="hdt"></div>
+  </header>
+
+  <div id="status"></div>
+
+  <!-- Fasting Card -->
+  <div class="card fast-card" id="fcard">
+    <div class="fast-row">
+      <span style="font-size:20px">⚡</span>
+      <span class="fast-title">Fasting</span>
+      <span class="badge" id="fbadge">INACTIVE</span>
+    </div>
+    <div id="fast-timer">00:00:00</div>
+    <div id="fast-meta"></div>
+    <div class="fast-btns">
+      <button class="btn btn-green" id="btn-start" onclick="openModal('fast')">Start Fast</button>
+      <button class="btn btn-red"   id="btn-end"   onclick="endFast()" style="display:none">End Fast</button>
+    </div>
+  </div>
+
+  <!-- Quick Log -->
+  <div class="sec">Quick Log</div>
+  <div class="grid">
+    <button class="qbtn" style="--c:#3b82f6" onclick="openModal('supplement')"><span class="qi">💊</span><span class="ql">Supplements</span></button>
+    <button class="qbtn" style="--c:#f59e0b" onclick="openModal('alcohol')"><span class="qi">🍷</span><span class="ql">Alcohol</span></button>
+    <button class="qbtn" style="--c:#8b5cf6" onclick="openModal('massage')"><span class="qi">💆</span><span class="ql">Massage</span></button>
+    <button class="qbtn" style="--c:#ef4444" onclick="openModal('red_light')"><span class="qi">🔴</span><span class="ql">Red Light</span></button>
+    <button class="qbtn" style="--c:#f97316" onclick="openModal('sauna')"><span class="qi">🧖</span><span class="ql">Sauna</span></button>
+    <button class="qbtn" style="--c:#6366f1" onclick="openModal('flight')"><span class="qi">✈️</span><span class="ql">Overnight Flight</span></button>
+    <button class="qbtn" style="--c:#06b6d4" onclick="openModal('timezone')"><span class="qi">🌍</span><span class="ql">Timezone Change</span></button>
+    <button class="qbtn" style="--c:#64748b" onclick="openModal('note')"><span class="qi">📝</span><span class="ql">Note</span></button>
+  </div>
+
+  <!-- Recent Entries -->
+  <div class="sec">Recent</div>
+  <div class="entries" id="entries"><div class="empty">Loading…</div></div>
+</div>
+
+<!-- Modal -->
+<div id="overlay" onclick="overlayClick(event)">
+  <div id="modal">
+    <div class="drag"></div>
+    <div class="mhead">
+      <span class="mtitle" id="mtitle"></span>
+      <button class="mclose" onclick="closeModal()">✕</button>
+    </div>
+    <div class="mbody" id="mbody"></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG — replace with your Supabase values ─────────────────────────────────
+const SB_URL = 'https://omrvqkefmlptsqpbmsxv.supabase.co';
+const SB_KEY = 'sb_publishable_GxibaKni7-in3KQLCz1EgQ_VRIli3Qg';
+
+// ── SUPPLEMENTS ────────────────────────────────────────────────────────────────
+const SUPS = [
+  { name:'Tirzepatide',          dose:'2.0mg' },
+  { name:'Repatha',              dose:'23.5mg' },
+  { name:'Vitamin D3',           dose:'10,000 IU' },
+  { name:'Nicotinamide Riboside',dose:'1g' },
+  { name:'Magnesium Glycinate',  dose:'360mg' },
+  { name:'Omega-3',              dose:'4g' },
+  { name:'Creatine Monohydrate', dose:'20g' },
+  { name:'Glycine',              dose:'3g' },
+  { name:'GHK-Cu',               dose:'2.0mg' },
+];
+
+// ── ENTRY TYPE META ────────────────────────────────────────────────────────────
+const TMETA = {
+  fast:       { label:'Fast',           icon:'⚡', color:'#10b981', title:'⚡ Start Fast' },
+  supplement: { label:'Supplements',    icon:'💊', color:'#3b82f6', title:'💊 Supplements' },
+  alcohol:    { label:'Alcohol',        icon:'🍷', color:'#f59e0b', title:'🍷 Alcohol' },
+  massage:    { label:'Massage',        icon:'💆', color:'#8b5cf6', title:'💆 Massage' },
+  red_light:  { label:'Red Light',      icon:'🔴', color:'#ef4444', title:'🔴 Red Light Therapy' },
+  sauna:      { label:'Sauna',          icon:'🧖', color:'#f97316', title:'🧖 Sauna' },
+  flight:     { label:'Overnight Flight',icon:'✈️',color:'#6366f1', title:'✈️ Overnight Flight' },
+  timezone:   { label:'Timezone Change',icon:'🌍', color:'#06b6d4', title:'🌍 Timezone Change' },
+  note:       { label:'Note',           icon:'📝', color:'#64748b', title:'📝 Note' },
+};
+
+// ── INIT ───────────────────────────────────────────────────────────────────────
+let db = null;
+let fastTick = null;
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (SB_URL !== 'YOUR_SUPABASE_URL') {
+    db = supabase.createClient(SB_URL, SB_KEY);
+  } else {
+    toast('⚠️ Add your Supabase URL & Key to the app config', 'err', 8000);
+  }
+  tick();
+  setInterval(tick, 1000);
+  initFast();
+  loadEntries();
+});
+
+function tick() {
+  const n = new Date();
+  document.getElementById('hdt').innerHTML =
+    n.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+    + '<br>' + n.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+}
+
+// ── FASTING ────────────────────────────────────────────────────────────────────
+function initFast() {
+  const f = activeFast();
+  if (f) setFastUI(true, f.type, f.startedAt);
+}
+
+const activeFast   = () => { const d = localStorage.getItem('jf'); return d ? JSON.parse(d) : null; };
+const saveFast     = (o) => localStorage.setItem('jf', JSON.stringify(o));
+const clearFastLs  = () => localStorage.removeItem('jf');
+
+function setFastUI(on, type, startedAt) {
+  const card  = document.getElementById('fcard');
+  const badge = document.getElementById('fbadge');
+  const timer = document.getElementById('fast-timer');
+  const meta  = document.getElementById('fast-meta');
+  const bS    = document.getElementById('btn-start');
+  const bE    = document.getElementById('btn-end');
+
+  clearInterval(fastTick);
+  if (on) {
+    card.classList.add('on');
+    badge.textContent = 'ACTIVE'; badge.classList.add('on');
+    timer.style.display = 'block';
+    meta.textContent = type + ' · started ' +
+      new Date(startedAt).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+    bS.style.display = 'none'; bE.style.display = '';
+    const update = () => {
+      const ms = Date.now() - new Date(startedAt).getTime();
+      timer.textContent = fmtDur(ms);
+    };
+    update();
+    fastTick = setInterval(update, 1000);
+  } else {
+    card.classList.remove('on');
+    badge.textContent = 'INACTIVE'; badge.classList.remove('on');
+    timer.style.display = 'none';
+    meta.textContent = '';
+    bS.style.display = ''; bE.style.display = 'none';
+  }
+}
+
+async function startFast(type) {
+  const startedAt = new Date().toISOString();
+  let id = null;
+  if (db) {
+    const { data } = await db.from('journal_entries')
+      .insert({ entry_type:'fast', started_at:startedAt, metadata:{ fast_type:type } })
+      .select('id').single();
+    if (data) id = data.id;
+  }
+  saveFast({ type, startedAt, id });
+  setFastUI(true, type, startedAt);
+  closeModal();
+  toast('✓ Fast started');
+  loadEntries();
+}
+
+async function endFast() {
+  const f = activeFast();
+  if (!f) return;
+  const endedAt = new Date().toISOString();
+  const dur = Date.now() - new Date(f.startedAt).getTime();
+  if (db && f.id) {
+    await db.from('journal_entries').update({ ended_at:endedAt }).eq('id', f.id);
+  }
+  clearFastLs();
+  setFastUI(false);
+  toast('✓ Fast ended · ' + fmtDur(dur));
+  loadEntries();
+}
+
+// ── MODAL ──────────────────────────────────────────────────────────────────────
+function openModal(type) {
+  document.getElementById('mtitle').textContent = TMETA[type]?.title || type;
+  document.getElementById('mbody').innerHTML = buildForm(type);
+  document.getElementById('overlay').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal() {
+  document.getElementById('overlay').classList.remove('show');
+  document.body.style.overflow = '';
+}
+function overlayClick(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
+
+// ── FORM BUILDER ───────────────────────────────────────────────────────────────
+function buildForm(type) {
+  const notesField = `
+    <div class="fg">
+      <label class="fl">Notes (optional)</label>
+      <textarea class="fta" id="f-notes" placeholder="Any notes…"></textarea>
+    </div>`;
+
+  const durPicker = (id, def, step=5) => `
+    <div class="fg">
+      <label class="fl">Duration (minutes)</label>
+      <div class="numrow">
+        <button class="nmbtn" onclick="adj('${id}',-${step},${step})">−</button>
+        <div class="nmval" id="${id}">${def}</div>
+        <button class="nmbtn" onclick="adj('${id}',${step})">+</button>
+      </div>
+    </div>`;
+
+  const pills = (id, opts, selIdx=0) => `
+    <div class="pills" id="${id}">
+      ${opts.map((o,i) => `<button class="pill${i===selIdx?' sel':''}" onclick="selPill(this,'${id}')">${o}</button>`).join('')}
+    </div>`;
+
+  switch (type) {
+    case 'fast': return `
+      <div class="fg"><label class="fl">Fast Type</label>
+        ${pills('p-fast',['16:8','18:6','36-Hour','Other'])}
+      </div>
+      ${notesField}
+      <button class="savebtn" onclick="submitFast()">Start Fast</button>`;
+
+    case 'supplement': return `
+      <p style="color:var(--text2);font-size:13px;margin-bottom:12px">Check what you took:</p>
+      <div class="suplist">
+        ${SUPS.map((s,i)=>`
+          <label class="supitem">
+            <input type="checkbox" id="sc-${i}">
+            <span class="supname">${s.name}</span>
+            <span class="supdose">${s.dose}</span>
+          </label>`).join('')}
+      </div>
+      ${notesField}
+      <button class="savebtn" onclick="save('supplement',{taken:checkedSups()})">Log Supplements</button>`;
+
+    case 'alcohol': return `
+      <div class="fg"><label class="fl">Drinks</label>
+        <div class="numrow">
+          <button class="nmbtn" onclick="adj('f-drinks',-1,1)">−</button>
+          <div class="nmval" id="f-drinks">1</div>
+          <button class="nmbtn" onclick="adj('f-drinks',1)">+</button>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">Type</label>
+        ${pills('p-alc',['Wine','Beer','Spirits','Other'])}
+      </div>
+      ${notesField}
+      <button class="savebtn" onclick="save('alcohol',{drinks:numVal('f-drinks'),type:selVal('p-alc')})">Log Alcohol</button>`;
+
+    case 'massage': return `
+      ${durPicker('f-mdur',60,10)}
+      <div class="fg"><label class="fl">Type</label>
+        ${pills('p-msg',['Deep Tissue','Swedish','Sports','Other'])}
+      </div>
+      ${notesField}
+      <button class="savebtn" onclick="save('massage',{duration_min:numVal('f-mdur'),type:selVal('p-msg')})">Log Massage</button>`;
+
+    case 'red_light': return `
+      ${durPicker('f-rldur',20)}
+      <div class="fg"><label class="fl">Body Area (optional)</label>
+        <input class="fi" id="f-rlzone" placeholder="e.g. Full body, Face, Joints…">
+      </div>
+      ${notesField}
+      <button class="savebtn" onclick="save('red_light',{duration_min:numVal('f-rldur'),zone:v('f-rlzone')})">Log Red Light</button>`;
+
+    case 'sauna': return `
+      ${durPicker('f-sdur',20)}
+      <div class="fg"><label class="fl">Temperature °F (optional)</label>
+        <input class="fi" id="f-stemp" type="number" placeholder="e.g. 180">
+      </div>
+      <div class="fg"><label class="fl">Type</label>
+        ${pills('p-sau',['Dry','Infrared','Steam'])}
+      </div>
+      ${notesField}
+      <button class="savebtn" onclick="save('sauna',{duration_min:numVal('f-sdur'),temp_f:v('f-stemp')||null,type:selVal('p-sau')})">Log Sauna</button>`;
+
+    case 'flight': return `
+      <div class="fg"><label class="fl">From</label>
+        <input class="fi" id="f-ffrom" placeholder="Departure city / airport">
+      </div>
+      <div class="fg"><label class="fl">To</label>
+        <input class="fi" id="f-fto" placeholder="Arrival city / airport">
+      </div>
+      <div class="fg"><label class="fl">Departure Time</label>
+        <input class="fi" id="f-fdep" type="time">
+      </div>
+      ${notesField}
+      <button class="savebtn" onclick="save('flight',{from:v('f-ffrom'),to:v('f-fto'),departure_time:v('f-fdep')})">Log Flight</button>`;
+
+    case 'timezone': return `
+      <div class="fg"><label class="fl">From Timezone</label>
+        <input class="fi" id="f-tzfrom" placeholder="e.g. EST, GMT-5">
+      </div>
+      <div class="fg"><label class="fl">To Timezone</label>
+        <input class="fi" id="f-tzto" placeholder="e.g. GMT, CET">
+      </div>
+      <div class="fg"><label class="fl">Hours Difference</label>
+        <input class="fi" id="f-tzdiff" type="number" placeholder="e.g. +5 or -3">
+      </div>
+      ${notesField}
+      <button class="savebtn" onclick="save('timezone',{from_tz:v('f-tzfrom'),to_tz:v('f-tzto'),offset_hours:v('f-tzdiff')})">Log Timezone</button>`;
+
+    case 'note': return `
+      <div class="fg"><label class="fl">Note</label>
+        <textarea class="fta" id="f-notetext" style="min-height:120px" placeholder="Symptoms, diet, observations…"></textarea>
+      </div>
+      <div class="fg"><label class="fl">Category</label>
+        ${pills('p-ncat',['General','Diet','Symptom','Recovery','Sleep'])}
+      </div>
+      <button class="savebtn" onclick="save('note',{text:v('f-notetext'),category:selVal('p-ncat')})">Save Note</button>`;
+
+    default: return '';
+  }
+}
+
+// ── FORM HELPERS ───────────────────────────────────────────────────────────────
+function selPill(el, gid) {
+  document.querySelectorAll(`#${gid} .pill`).forEach(p => p.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function selVal(gid) {
+  return document.querySelector(`#${gid} .pill.sel`)?.textContent || null;
+}
+function adj(id, d, min=0) {
+  const el = document.getElementById(id);
+  el.textContent = Math.max(min, (parseInt(el.textContent)||0) + d);
+}
+function numVal(id) { return parseInt(document.getElementById(id)?.textContent) || 0; }
+function v(id)      { return document.getElementById(id)?.value?.trim() || null; }
+function checkedSups() {
+  return SUPS.filter((_,i) => document.getElementById(`sc-${i}`)?.checked).map(s=>s.name);
+}
+
+// ── SAVE ───────────────────────────────────────────────────────────────────────
+async function submitFast() {
+  await startFast(selVal('p-fast') || '16:8');
+}
+
+async function save(type, metadata) {
+  if (!db) { toast('Configure Supabase first', 'err'); return; }
+  if (type === 'supplement' && (!metadata.taken || !metadata.taken.length)) {
+    toast('Select at least one supplement', 'err'); return;
+  }
+  const notes = v('f-notes');
+  const { error } = await db.from('journal_entries').insert({
+    entry_type: type,
+    started_at: new Date().toISOString(),
+    notes: notes || null,
+    metadata,
+  });
+  if (error) { toast('✗ ' + error.message, 'err'); return; }
+  closeModal();
+  toast('✓ Logged');
+  loadEntries();
+}
+
+// ── RECENT ENTRIES ─────────────────────────────────────────────────────────────
+async function loadEntries() {
+  const el = document.getElementById('entries');
+  if (!db) { el.innerHTML = '<div class="empty">Configure Supabase to see entries</div>'; return; }
+  const { data, error } = await db.from('journal_entries')
+    .select('*').order('started_at', { ascending:false }).limit(20);
+  if (error || !data?.length) {
+    el.innerHTML = '<div class="empty">No entries yet — start logging!</div>'; return;
+  }
+  el.innerHTML = data.map(e => {
+    const tm = TMETA[e.entry_type] || { label:e.entry_type, icon:'•', color:'#64748b' };
+    const m  = e.metadata || {};
+    let detail = '';
+    switch(e.entry_type) {
+      case 'fast':
+        detail = (m.fast_type||'') + (e.ended_at
+          ? ' · '+fmtDur(new Date(e.ended_at)-new Date(e.started_at))
+          : ' · in progress'); break;
+      case 'supplement': detail = (m.taken||[]).join(', '); break;
+      case 'alcohol':    detail = `${m.drinks||''} ${m.type||'drink'}${m.drinks>1?'s':''}`; break;
+      case 'massage':    detail = `${m.duration_min||''}min · ${m.type||''}`; break;
+      case 'red_light':  detail = `${m.duration_min||''}min${m.zone?' · '+m.zone:''}`; break;
+      case 'sauna':      detail = `${m.duration_min||''}min ${m.type||''}${m.temp_f?' · '+m.temp_f+'°F':''}`; break;
+      case 'flight':     detail = `${m.from||''} → ${m.to||''}`; break;
+      case 'timezone':   detail = `${m.from_tz||''} → ${m.to_tz||''}`; break;
+      case 'note':       detail = (m.text||e.notes||'').substring(0,60); break;
+    }
+    if (e.notes && e.entry_type!=='note') detail = (detail?detail+' · ':'')+e.notes.substring(0,40);
+    return `<div class="entry">
+      <div class="dot" style="background:${tm.color}"></div>
+      <div class="ec">
+        <div class="et">${tm.icon} ${tm.label}</div>
+        <div class="ed">${detail||'—'}</div>
+      </div>
+      <div class="etime">${ago(new Date(e.started_at))}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────────────
+function fmtDur(ms) {
+  const h=Math.floor(ms/3600000), m=Math.floor((ms%3600000)/60000), s=Math.floor((ms%60000)/1000);
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+function ago(d) {
+  const diff = Date.now()-d;
+  if (diff<60000) return 'just now';
+  if (diff<3600000) return Math.floor(diff/60000)+'m ago';
+  if (diff<86400000) return Math.floor(diff/3600000)+'h ago';
+  if (diff<604800000) return Math.floor(diff/86400000)+'d ago';
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+function toast(msg, type='ok', ms=2800) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = type==='err' ? 's-err' : 's-ok';
+  setTimeout(() => { el.className=''; el.style.display='none'; }, ms);
+}
+
+// ── SERVICE WORKER ─────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
