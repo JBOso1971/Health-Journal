@@ -130,10 +130,13 @@
     /* Supplement list */
     .suplist { display: flex; flex-direction: column; gap: 7px; }
     .supitem { display: flex; align-items: center; gap: 12px; background: var(--card2);
-      padding: 11px 13px; border-radius: 10px; cursor: pointer; }
-    .supitem input { width: 18px; height: 18px; accent-color: var(--green); cursor: pointer; }
+      padding: 11px 13px; border-radius: 10px; }
+    .supitem input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--green);
+      cursor: pointer; flex-shrink: 0; }
     .supname { font-size: 14px; flex: 1; }
     .supdose { font-size: 12px; color: var(--text2); }
+    .sup-dose-fi { width: 90px !important; font-size: 13px !important;
+      padding: 5px 8px !important; text-align: right; flex-shrink: 0; }
 
     /* Save button */
     .savebtn { width: 100%; padding: 15px; border-radius: 13px; font-size: 16px;
@@ -291,8 +294,8 @@ function setFastUI(on, type, startedAt) {
   }
 }
 
-async function startFast(type) {
-  const startedAt = new Date().toISOString();
+async function startFast(type, startedAt) {
+  startedAt = startedAt || new Date().toISOString();
   let id = null;
   if (db) {
     const { data } = await db.from('journal_entries')
@@ -362,21 +365,32 @@ function buildForm(type) {
       <div class="fg"><label class="fl">Fast Type</label>
         ${pills('p-fast',['16:8','18:6','36-Hour','Other'])}
       </div>
+      <div class="fg">
+        <label class="fl">Start Time</label>
+        <div class="pills">
+          <button class="pill sel" id="fm-now" onclick="setFastMode('now')">Start Now</button>
+          <button class="pill" id="fm-custom" onclick="setFastMode('custom')">Custom Time</button>
+        </div>
+      </div>
+      <div class="fg" id="fg-fast-custom" style="display:none">
+        <label class="fl">Time (24-hour format, e.g. 17:00)</label>
+        <input class="fi" id="f-fast-time" type="time">
+      </div>
       ${notesField}
       <button class="savebtn" onclick="submitFast()">Start Fast</button>`;
 
-    case 'supplement': return `
-      <p style="color:var(--text2);font-size:13px;margin-bottom:12px">Check what you took:</p>
+    case 'supplement': { const sd = getStoredDoses(); return `
+      <p style="color:var(--text2);font-size:13px;margin-bottom:12px">Check what you took and confirm doses:</p>
       <div class="suplist">
-        ${SUPS.map((s,i)=>`
-          <label class="supitem">
+        ${SUPS.map((s,i)=>{ const ld=sd[s.name]||s.dose; return `
+          <div class="supitem">
             <input type="checkbox" id="sc-${i}">
             <span class="supname">${s.name}</span>
-            <span class="supdose">${s.dose}</span>
-          </label>`).join('')}
+            <input class="fi sup-dose-fi" id="sd-${i}" value="${ld}" placeholder="${s.dose}">
+          </div>`; }).join('')}
       </div>
       ${notesField}
-      <button class="savebtn" onclick="save('supplement',{taken:checkedSups()})">Log Supplements</button>`;
+      <button class="savebtn" onclick="logSupplements()">Log Supplements</button>`; }
 
     case 'alcohol': return `
       <div class="fg"><label class="fl">Drinks</label>
@@ -473,12 +487,51 @@ function adj(id, d, min=0) {
 function numVal(id) { return parseInt(document.getElementById(id)?.textContent) || 0; }
 function v(id)      { return document.getElementById(id)?.value?.trim() || null; }
 function checkedSups() {
-  return SUPS.filter((_,i) => document.getElementById(`sc-${i}`)?.checked).map(s=>s.name);
+  return SUPS.reduce((acc, s, i) => {
+    if (document.getElementById(`sc-${i}`)?.checked) {
+      const dose = document.getElementById(`sd-${i}`)?.value?.trim() || s.dose;
+      acc.push({ name: s.name, dose });
+    }
+    return acc;
+  }, []);
+}
+function logSupplements() {
+  const taken = checkedSups();
+  if (!taken.length) { toast('Select at least one supplement', 'err'); return; }
+  saveDoses(taken);
+  save('supplement', { taken });
+}
+function getStoredDoses() {
+  try { return JSON.parse(localStorage.getItem('sup_doses') || '{}'); } catch { return {}; }
+}
+function saveDoses(taken) {
+  const stored = getStoredDoses();
+  taken.forEach(({ name, dose }) => { if (dose) stored[name] = dose; });
+  localStorage.setItem('sup_doses', JSON.stringify(stored));
+}
+function setFastMode(mode) {
+  document.getElementById('fm-now').classList.toggle('sel', mode === 'now');
+  document.getElementById('fm-custom').classList.toggle('sel', mode === 'custom');
+  document.getElementById('fg-fast-custom').style.display = mode === 'custom' ? '' : 'none';
+  if (mode === 'custom') document.getElementById('f-fast-time').focus();
 }
 
 // ── SAVE ───────────────────────────────────────────────────────────────────────
 async function submitFast() {
-  await startFast(selVal('p-fast') || '16:8');
+  const fastType = selVal('p-fast') || '16:8';
+  const isCustom = document.getElementById('fm-custom')?.classList.contains('sel');
+  let startedAt;
+  if (isCustom) {
+    const tv = document.getElementById('f-fast-time')?.value;
+    if (!tv) { toast('Enter a start time', 'err'); return; }
+    const [h, m] = tv.split(':').map(Number);
+    const d = new Date(); d.setHours(h, m, 0, 0);
+    if (d > new Date()) d.setDate(d.getDate() - 1); // past time today assumed; future = yesterday
+    startedAt = d.toISOString();
+  } else {
+    startedAt = new Date().toISOString();
+  }
+  await startFast(fastType, startedAt);
 }
 
 async function save(type, metadata) {
@@ -517,7 +570,7 @@ async function loadEntries() {
         detail = (m.fast_type||'') + (e.ended_at
           ? ' · '+fmtDur(new Date(e.ended_at)-new Date(e.started_at))
           : ' · in progress'); break;
-      case 'supplement': detail = (m.taken||[]).join(', '); break;
+      case 'supplement': detail = (m.taken||[]).map(t=>typeof t==='string'?t:`${t.name} ${t.dose}`).join(', '); break;
       case 'alcohol':    detail = `${m.drinks||''} ${m.type||'drink'}${m.drinks>1?'s':''}`; break;
       case 'massage':    detail = `${m.duration_min||''}min · ${m.type||''}`; break;
       case 'red_light':  detail = `${m.duration_min||''}min${m.zone?' · '+m.zone:''}`; break;
