@@ -618,17 +618,6 @@ function renderHome() {
     <div class="section">
       <div class="section-head">
         <span class="section-head__no">&sect;01</span>
-        <span class="section-head__title">Today's Log</span>
-        <span class="section-head__right" id="today-count">&#8212;</span>
-      </div>
-      <div id="today-entries"><div class="empty-state">loading&hellip;</div></div>
-    </div>
-
-    <div class="divider"></div>
-
-    <div class="section">
-      <div class="section-head">
-        <span class="section-head__no">&sect;02</span>
         <span class="section-head__title">Log Entry</span>
         <span class="section-head__right">tap to open</span>
       </div>
@@ -643,10 +632,9 @@ function renderHome() {
         </button>`).join('')}
     </div>
 
-
     <div class="section">
       <div class="section-head">
-        <span class="section-head__no">&sect;03</span>
+        <span class="section-head__no">&sect;02</span>
         <span class="section-head__title">Log Review</span>
         <span class="section-head__right">recent entries</span>
       </div>
@@ -666,7 +654,6 @@ function renderHome() {
       <span class="ok">+</span> data writes to supabase in real-time
     </div>`;
 
-  loadTodayEntries();
   if (activeFast) startFastBannerTimer(activeFast);
 }
 
@@ -1555,6 +1542,78 @@ function toLocalDatetimeInput(d) {
 }
 
 // ── LOG REVIEW ─────────────────────────────────────────────────────────────
+function formatMetaReadable(type, meta, notes, startedAt, endedAt) {
+  var rows = [];
+  function row(k, v) { if (v !== null && v !== undefined && v !== '') rows.push({ k: k, v: String(v) }); }
+  var fmtTime = function(iso) {
+    return iso ? new Date(iso).toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false }) : '';
+  };
+  row('logged', fmtTime(startedAt));
+  switch (type) {
+    case 'fast':
+      if (endedAt) {
+        var dur = ((new Date(endedAt) - new Date(startedAt)) / 3600000).toFixed(1);
+        row('duration', dur + ' hours');
+        row('ended', fmtTime(endedAt));
+      } else {
+        row('status', 'in progress');
+      }
+      row('type', meta.fast_type || 'manual');
+      if (meta.last_meal_at) row('last meal', fmtTime(meta.last_meal_at));
+      break;
+    case 'supplement':
+      var taken = meta.taken || [];
+      if (taken.length) {
+        taken.forEach(function(s) { row('taken', s.name + ' · ' + s.dose); });
+      }
+      var skipped = (meta.skipped || []).filter(function(s) { return s.reason !== 'hold'; });
+      if (skipped.length) row('skipped', skipped.map(function(s) { return s.name; }).join(', '));
+      if (meta.preset_time && meta.preset_time !== 'now') row('time preset', meta.preset_time);
+      break;
+    case 'sauna':
+      row('type', meta.type || meta.heat_type || '');
+      row('temperature', (meta.temp_f || meta.temperature_f || '') + ' °F');
+      row('duration', (meta.duration_min || '') + ' min');
+      if (meta.location) row('location', meta.location);
+      break;
+    case 'red_light':
+      row('zone', meta.zone || meta.area || '');
+      row('duration', (meta.duration_min || '') + ' min');
+      if (meta.wavelength) row('wavelength', meta.wavelength);
+      if (meta.distance_cm) row('distance', meta.distance_cm + ' cm');
+      break;
+    case 'alcohol':
+      row('drinks', meta.drinks || '');
+      row('type', meta.type || '');
+      break;
+    case 'massage':
+      row('duration', (meta.duration_min || '') + ' min');
+      row('type', meta.type || '');
+      break;
+    case 'flight':
+      row('route', (meta.from || '') + ' → ' + (meta.to || ''));
+      if (meta.departure_time) row('departure', meta.departure_time);
+      break;
+    case 'timezone':
+      row('from', meta.from_tz || '');
+      row('to', meta.to_tz || '');
+      if (meta.offset_hours !== null && meta.offset_hours !== undefined)
+        row('offset', (meta.offset_hours >= 0 ? '+' : '') + meta.offset_hours + ' hours');
+      break;
+    case 'note':
+      row('category', meta.category || '');
+      row('text', meta.text || notes || '');
+      break;
+    default:
+      Object.keys(meta).forEach(function(k) {
+        var v = meta[k];
+        if (typeof v !== 'object') row(k, v);
+      });
+  }
+  if (notes && type !== 'note') row('notes', notes);
+  return rows;
+}
+
 async function renderLogReview() {
   var app = document.getElementById('app');
   var reviewMeta = { code:'LR', label:'Log Review' };
@@ -1584,16 +1643,14 @@ async function renderLogReview() {
   document.getElementById('rv-list').innerHTML = data.map(function(e, idx) {
     var m       = EMETA[e.entry_type] || { code: e.entry_type.substring(0,2).toUpperCase(), label: e.entry_type };
     var meta    = e.metadata || {};
-    var detail  = entryDetail(e.entry_type, meta, e.notes);
     var timeStr = new Date(e.started_at).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false });
-    var metaJson = JSON.stringify(meta, null, 2);
-    var detailRows =
-      '<div class="review-entry__detail-row"><span class="review-entry__detail-key">type</span><span class="review-entry__detail-val">' + e.entry_type + '</span></div>' +
-      '<div class="review-entry__detail-row"><span class="review-entry__detail-key">started</span><span class="review-entry__detail-val">' + new Date(e.started_at).toLocaleString() + '</span></div>' +
-      (e.ended_at ? '<div class="review-entry__detail-row"><span class="review-entry__detail-key">ended</span><span class="review-entry__detail-val">' + new Date(e.ended_at).toLocaleString() + '</span></div>' : '') +
-      (e.notes ? '<div class="review-entry__detail-row"><span class="review-entry__detail-key">notes</span><span class="review-entry__detail-val">' + e.notes + '</span></div>' : '') +
-      '<div class="review-entry__detail-row"><span class="review-entry__detail-key">summary</span><span class="review-entry__detail-val">' + detail + '</span></div>' +
-      '<div class="review-entry__detail-row" style="align-items:start"><span class="review-entry__detail-key">metadata</span><span class="review-entry__detail-val" style="white-space:pre-wrap;font-size:10px">' + metaJson.substring(0, 300) + (metaJson.length > 300 ? '...' : '') + '</span></div>';
+    var readable = formatMetaReadable(e.entry_type, meta, e.notes, e.started_at, e.ended_at);
+    var detailRows = readable.map(function(r) {
+      return '<div class="review-entry__detail-row">' +
+        '<span class="review-entry__detail-key">' + r.k + '</span>' +
+        '<span class="review-entry__detail-val">' + r.v + '</span>' +
+      '</div>';
+    }).join('');
     return '<div class="review-entry" onclick="toggleReviewDetail(' + idx + ')">' +
       '<div class="review-entry__head">' +
         '<span class="review-entry__code">' + m.code + '</span>' +
