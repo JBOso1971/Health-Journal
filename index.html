@@ -900,7 +900,7 @@ function buildSupplementForm(meta) {
     '<div class="tab-strip" id="time-tabs">' +
     ['Now','07:00','12:00','18:00','Custom'].map(function(t, i) {
       return '<button class="tab-chip" aria-selected="' + (i === 0) + '" ' +
-        'onclick="selectTab(this,'time-tabs')" data-time="' + t + '">' + t + '</button>';
+        'onclick="selectTab(this,\'time-tabs\')" data-time="' + t + '">' + t + '</button>';
     }).join('') +
     '</div>' +
     '<div id="custom-time-wrap" style="display:none" class="section-pad">' +
