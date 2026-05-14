@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Navy background — full bleed so maskable crop looks clean -->
+  <rect width="512" height="512" fill="#0d1b2a"/>
+  <!-- Rx badge box border, matching app .rx-badge style -->
+  <rect x="106" y="106" width="300" height="300" fill="none" stroke="#3a8fd1" stroke-width="13"/>
+  <!-- ℞ prescription symbol, Georgia serif, accent-bright -->
+  <text
+    x="256"
+    y="298"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="210"
+    fill="#3a8fd1"
+    text-anchor="middle">&#8478;</text>
+</svg>
