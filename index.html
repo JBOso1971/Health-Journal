@@ -2,619 +2,1428 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1b2a">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>JB Health Journal</title>
+  <title>Health Journal</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
+    /* ── DESIGN TOKENS ──────────────────────────────────────────────── */
     :root {
-      --bg: #0f172a; --card: #1e293b; --card2: #253147; --border: #334155;
-      --text: #e2e8f0; --text2: #94a3b8; --green: #10b981; --green-dim: #052e16;
+      --navy-dark:  #0d1b2a;
+      --navy-mid:   #1b2d45;
+      --navy-light: #243447;
+      --navy-edge:  #0a1623;
+      --accent:        #2a6496;
+      --accent-bright: #3a8fd1;
+      --accent-tint:   #eef4f9;
+      --paper:      #f4f1ea;
+      --paper-2:    #fbf8f1;
+      --paper-edge: #ece7dc;
+      --paper-line: #d6cfbf;
+      --paper-hold: #f7eee0;
+      --ink:        #1e293b;
+      --ink-dim:    #5b6776;
+      --ink-muted:  #94a3b8;
+      --on-navy-fg:     #e6edf3;
+      --on-navy-fg-dim: #94a3b8;
+      --state-ok:      #22c55e;
+      --state-warn:    #d97706;
+      --state-err:     #dc2626;
+      --state-pending: #cbd5e1;
+      --confirm-bg: #eef7ee;
+      --s-1:2px; --s-2:4px; --s-3:6px; --s-4:8px; --s-5:10px;
+      --s-6:12px; --s-7:14px; --s-8:16px; --s-9:18px; --s-10:20px;
+      --s-11:24px; --s-12:28px; --s-13:32px; --s-14:40px;
+      --bw-hair:1px; --bw-rule:1.5px; --bw-emph:3px;
+      --r-0:0; --r-1:2px; --r-full:9999px;
+      --rule-solid:  1px solid var(--paper-line);
+      --rule-dashed: 1px dashed var(--paper-line);
+      --rule-dotted: 1px dotted var(--paper-line);
+      --shadow-frame: 0 30px 80px rgba(0,0,0,.45), 0 8px 24px rgba(0,0,0,.35);
+      --font-sans:  'Inter', Arial, system-ui, sans-serif;
+      --font-serif: Georgia, 'Noto Serif', serif;
+      --font-mono:  'JetBrains Mono', 'Roboto Mono', ui-monospace, monospace;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html, body { height: 100%; background: var(--bg); color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
-    #app { max-width: 480px; margin: 0 auto;
-      padding: 0 16px calc(32px + env(safe-area-inset-bottom)); }
 
-    /* Header */
-    header { display: flex; justify-content: space-between; align-items: center;
-      padding: 16px 0 20px; position: sticky; top: 0; background: var(--bg); z-index: 10; }
-    .logo { font-size: 18px; font-weight: 700; }
-    .header-dt { font-size: 12px; color: var(--text2); text-align: right; line-height: 1.5; }
+    /* ── RESET ────────────────────────────────────────────────────── */
+    *, *::before, *::after {
+      box-sizing: border-box; margin: 0; padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      height: 100%; background: var(--navy-edge);
+      font-family: var(--font-sans); color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
 
-    /* Status */
-    #status { padding: 10px 14px; border-radius: 10px; margin-bottom: 14px;
-      font-size: 14px; font-weight: 500; display: none; }
-    .s-ok  { background: #052e16; color: #6ee7b7; display: block !important; }
-    .s-err { background: #450a0a; color: #fca5a5; display: block !important; }
+    /* ── APP SHELL ────────────────────────────────────────────────── */
+    .app-shell {
+      width: 100%; max-width: 480px; margin: 0 auto;
+      min-height: 100dvh; min-height: 100vh;
+      background: var(--paper-edge); position: relative;
+    }
+    .scroll {
+      height: 100dvh; height: 100vh;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding-bottom: 150px;
+    }
+    .scroll--nofooter { padding-bottom: 0; }
 
-    /* Cards */
-    .card { background: var(--card); border-radius: 16px; padding: 18px; margin-bottom: 14px;
-      border: 1px solid var(--border); }
+    /* ── HEADER ───────────────────────────────────────────────────── */
+    .med-header {
+      background: var(--navy-dark); color: var(--on-navy-fg);
+      padding: max(env(safe-area-inset-top, 0px) + 16px, 24px) var(--s-10) var(--s-9);
+      border-bottom: 1px solid var(--accent);
+      position: sticky; top: 0; z-index: 20;
+    }
+    .med-header__top {
+      display: flex; align-items: center; gap: var(--s-5);
+      margin-bottom: var(--s-7);
+    }
+    .rx-badge {
+      width: 24px; height: 24px;
+      border: 1.5px solid var(--accent-bright);
+      display: inline-grid; place-items: center;
+      font-family: var(--font-serif); font-size: 13px;
+      color: var(--accent-bright); flex-shrink: 0;
+    }
+    .rx-badge--confirm {
+      width: 44px; height: 44px; border-radius: var(--r-full);
+      border: 2px solid var(--state-ok); color: var(--state-ok); font-size: 22px;
+    }
+    .header-eyebrow {
+      font: 600 9px/1.2 var(--font-sans);
+      letter-spacing: .18em; text-transform: uppercase; color: var(--on-navy-fg-dim);
+    }
+    .header-sync {
+      margin-left: auto; display: flex; align-items: center; gap: 6px;
+      font: 400 11.5px/1 var(--font-mono); color: var(--on-navy-fg-dim);
+    }
+    .header-sync__dot {
+      width: 6px; height: 6px; border-radius: var(--r-full); background: var(--state-ok);
+    }
+    .header-breadcrumb {
+      margin-left: auto; font: 400 11.5px/1 var(--font-mono); color: var(--on-navy-fg-dim);
+      background: none; border: none; cursor: pointer; padding: 4px 0;
+    }
+    .header-breadcrumb:active { opacity: .7; }
+    .header-sub {
+      font: 600 10px/1.2 var(--font-sans); letter-spacing: .18em;
+      text-transform: uppercase; color: var(--on-navy-fg-dim); margin-bottom: var(--s-2);
+    }
+    .header-title { font: 500 26px/1.1 var(--font-serif); color: var(--on-navy-fg); }
+    .header-meta-strip {
+      margin-top: var(--s-7); padding-top: var(--s-7);
+      border-top: 1px solid var(--navy-light);
+      display: flex; gap: var(--s-9);
+    }
+    .header-meta-item { display: flex; flex-direction: column; gap: 3px; }
+    .header-meta-label {
+      font: 600 9px/1.2 var(--font-sans); letter-spacing: .18em;
+      text-transform: uppercase; color: var(--on-navy-fg-dim);
+    }
+    .header-meta-val { font: 400 13px/1 var(--font-mono); color: var(--on-navy-fg); }
 
-    /* Fasting card */
-    .fast-card.on { border-color: var(--green);
-      background: linear-gradient(135deg, #1e293b 0%, #052e16 100%); }
-    .fast-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-    .fast-title { font-size: 17px; font-weight: 600; flex: 1; }
-    .badge { font-size: 11px; font-weight: 700; letter-spacing: 1px;
-      padding: 3px 10px; border-radius: 20px; background: var(--border); color: var(--text2); }
-    .badge.on { background: var(--green); color: #fff; }
-    #fast-timer { font-size: 44px; font-weight: 700; color: var(--green);
-      font-variant-numeric: tabular-nums; letter-spacing: -2px;
-      font-family: 'SF Mono', monospace; display: none; margin: 4px 0 8px; }
-    #fast-meta { font-size: 13px; color: var(--text2); margin-bottom: 14px; min-height: 18px; }
-    .fast-btns { display: flex; gap: 10px; }
+    /* ── SECTIONS ─────────────────────────────────────────────────── */
+    .section { background: var(--paper); border-bottom: var(--rule-solid); }
+    .section-head {
+      display: flex; align-items: baseline; gap: var(--s-5);
+      padding: var(--s-9) var(--s-9) var(--s-5);
+      border-bottom: var(--rule-solid); background: var(--paper-edge);
+    }
+    .section-head__no {
+      font: 600 9px/1.2 var(--font-sans); letter-spacing: .18em;
+      text-transform: uppercase; color: var(--ink-dim); min-width: 20px;
+    }
+    .section-head__title { font: 600 15px/1.1 var(--font-serif); color: var(--ink); }
+    .section-head__right {
+      margin-left: auto; font: 600 9px/1.2 var(--font-sans);
+      letter-spacing: .18em; text-transform: uppercase; color: var(--ink-dim);
+    }
 
-    /* Buttons */
-    .btn { flex: 1; padding: 13px; border-radius: 12px; font-size: 15px;
-      font-weight: 600; border: none; cursor: pointer; transition: opacity .15s; }
-    .btn:active { opacity: .75; }
-    .btn-green { background: var(--green); color: #fff; }
-    .btn-red   { background: #450a0a; color: #fca5a5; }
-    .btn-gray  { background: var(--card2); color: var(--text); }
+    /* ── ENTRY-CLASS BUTTON ───────────────────────────────────────── */
+    .entry-class {
+      width: 100%; display: grid; grid-template-columns: 44px 1fr auto;
+      align-items: center; padding: var(--s-7) var(--s-9);
+      background: var(--paper-2); border: none; border-bottom: var(--rule-solid);
+      cursor: pointer; text-align: left; transition: background 120ms ease-out;
+    }
+    .entry-class:last-child { border-bottom: none; }
+    .entry-class:hover  { background: var(--paper); }
+    .entry-class:active { background: var(--paper-edge); }
+    .entry-class:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .entry-class__code {
+      width: 36px; height: 36px; display: inline-grid; place-items: center;
+      background: var(--paper-2); border: 1px solid var(--paper-line);
+      font: 600 15px/1 var(--font-sans); color: var(--ink);
+    }
+    .entry-class__body { display: flex; flex-direction: column; gap: 2px; padding: 0 var(--s-6); }
+    .entry-class__name { font: 600 17px/1.2 var(--font-serif); color: var(--ink); }
+    .entry-class__sub  { font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-dim); }
+    .entry-class__chev {
+      font: 400 16px/1 var(--font-mono); color: var(--accent);
+      transition: color 120ms ease-out;
+    }
+    .entry-class:hover .entry-class__chev { color: var(--accent-bright); }
 
-    /* Section label */
-    .sec { font-size: 12px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 1px; color: var(--text2); margin: 20px 0 10px; }
+    /* ── INTERVENTION ROW ─────────────────────────────────────────── */
+    .intervention {
+      display: grid; grid-template-columns: 48px 1fr auto;
+      grid-template-rows: auto auto; column-gap: var(--s-6); row-gap: var(--s-2);
+      padding: var(--s-7) var(--s-9); border-bottom: var(--rule-solid); background: var(--paper);
+    }
+    .intervention:last-child { border-bottom: none; }
+    .intervention__code {
+      grid-row: 1 / 3; display: flex; align-items: center; justify-content: center;
+      font: 400 11px/1 var(--font-mono); color: var(--ink-dim); align-self: center;
+    }
+    .intervention__type  { font: 400 16px/1.35 var(--font-serif); color: var(--ink); }
+    .intervention__value { font: 400 16px/1.35 var(--font-serif); color: var(--ink); text-align: right; }
+    .intervention__admin { font: 400 11px/1.3 var(--font-mono); color: var(--ink-dim); }
+    .intervention__pill  { display: flex; justify-content: flex-end; }
 
-    /* Quick log grid */
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
-    .qbtn { background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-      padding: 15px 12px; display: flex; flex-direction: column; align-items: flex-start;
-      gap: 6px; cursor: pointer; transition: transform .12s; position: relative; overflow: hidden; }
-    .qbtn::before { content: ''; position: absolute; top: 0; left: 0;
-      width: 3px; height: 100%; background: var(--c); border-radius: 14px 0 0 14px; }
-    .qbtn:active { transform: scale(.96); }
-    .qi { font-size: 20px; }
-    .ql { font-size: 13px; font-weight: 500; color: var(--text); text-align: left; line-height: 1.2; }
+    /* ── STATE PILL ───────────────────────────────────────────────── */
+    .pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 7px; border-radius: var(--r-1);
+      font: 400 10px/1 var(--font-mono); letter-spacing: .14em; background: #fff;
+    }
+    .pill::before { content: ''; width: 6px; height: 6px; border-radius: var(--r-full); }
+    .pill--active   { color: var(--state-warn); border: 1px solid rgba(217,119,6,.33); }
+    .pill--active::before   { background: var(--state-warn); }
+    .pill--complete { color: var(--state-ok);   border: 1px solid rgba(34,197,94,.33); }
+    .pill--complete::before { background: var(--state-ok); }
+    .pill--pending  { color: var(--ink-dim);    border: 1px solid rgba(203,213,225,.5); }
+    .pill--pending::before  { background: var(--state-pending); }
 
-    /* Recent entries */
-    .entries { display: flex; flex-direction: column; gap: 8px; }
-    .entry { background: var(--card); border-radius: 12px; padding: 13px;
-      display: flex; align-items: flex-start; gap: 12px; }
-    .dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
-    .ec { flex: 1; min-width: 0; }
-    .et { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
-    .ed { font-size: 12px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .etime { font-size: 11px; color: var(--text2); white-space: nowrap; margin-top: 1px; }
-    .empty { text-align: center; color: var(--text2); padding: 28px; font-size: 14px; }
+    /* ── OPTION ROW ───────────────────────────────────────────────── */
+    .option-row {
+      display: grid; grid-template-columns: 34px 1fr auto;
+      column-gap: var(--s-7); align-items: center;
+      padding: var(--s-7) var(--s-9); background: #fff; border-bottom: var(--rule-solid);
+      border-left: 3px solid transparent; cursor: pointer;
+      transition: background 160ms ease-out, border-left-color 160ms ease-out;
+    }
+    .option-row:last-child { border-bottom: none; }
+    .option-row:hover { background: var(--paper-2); }
+    .option-row[aria-selected="true"] { background: var(--accent-tint); border-left-color: var(--accent); }
+    .option-row:focus-visible { border-left-color: var(--accent-bright); outline: none; }
+    .radio-circle {
+      width: 22px; height: 22px; border-radius: var(--r-full);
+      border: 1.5px solid var(--paper-line); background: #fff;
+      display: inline-grid; place-items: center; flex-shrink: 0;
+      transition: all 160ms ease-out;
+    }
+    .option-row[aria-selected="true"] .radio-circle {
+      border-color: var(--accent); background: var(--accent); color: #fff; font-size: 12px;
+    }
+    .option-row__body { display: flex; flex-direction: column; gap: 2px; }
+    .option-row__name { font: 600 17px/1.2 var(--font-serif); color: var(--ink); }
+    .option-row__sub  { font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-dim); }
+    .option-row__code { font: 400 11px/1 var(--font-mono); color: var(--ink-dim); }
 
-    /* Modal */
-    #overlay { position: fixed; inset: 0; background: rgba(0,0,0,.65);
-      backdrop-filter: blur(3px); z-index: 50; display: flex;
-      align-items: flex-end; display: none; }
-    #overlay.show { display: flex; }
-    #modal { background: var(--card); border-radius: 20px 20px 0 0; width: 100%;
-      max-height: 88vh; overflow-y: auto;
-      padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
-    .drag { width: 36px; height: 4px; background: var(--border);
-      border-radius: 2px; margin: 12px auto 0; }
-    .mhead { display: flex; align-items: center; justify-content: space-between;
-      padding: 18px 20px 4px; position: sticky; top: 0; background: var(--card); }
-    .mtitle { font-size: 19px; font-weight: 700; }
-    .mclose { background: var(--card2); border: none; color: var(--text);
-      width: 30px; height: 30px; border-radius: 50%; font-size: 13px;
-      cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .mbody { padding: 12px 20px 0; }
+    /* ── CHIPS ────────────────────────────────────────────────────── */
+    .chips { display: flex; margin: var(--s-9); border: 1px solid var(--paper-line); }
+    .chip {
+      flex: 1 1 0; padding: var(--s-5) var(--s-5);
+      text-align: center; font: 400 12px/1.3 var(--font-mono);
+      background: #fff; color: var(--ink); border: none; cursor: pointer;
+      transition: background 120ms ease-out;
+    }
+    .chips .chip + .chip { border-left: 1px solid var(--paper-line); }
+    .chip:hover { background: var(--paper-2); }
+    .chip[aria-pressed="true"] { background: var(--accent); color: #fff; }
+    .chip:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: -2px; }
 
-    /* Form */
-    .fg { margin-bottom: 15px; }
-    .fl { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: .5px; color: var(--text2); margin-bottom: 7px; }
-    .fi, .fsel, .fta { width: 100%; background: var(--card2); border: 1px solid var(--border);
-      border-radius: 10px; color: var(--text); font-size: 16px; padding: 11px 13px;
-      outline: none; font-family: inherit; }
-    .fi:focus, .fsel:focus, .fta:focus { border-color: var(--green); }
-    .fsel option { background: var(--card2); }
-    .fta { min-height: 80px; resize: none; }
+    /* ── FIELD GRID ───────────────────────────────────────────────── */
+    .field-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      column-gap: var(--s-9); row-gap: var(--s-8); padding: var(--s-7) var(--s-9);
+    }
+    .field-grid--3 { grid-template-columns: 1fr 1fr 1fr; column-gap: var(--s-7); }
+    .field-grid--1 { grid-template-columns: 1fr; }
 
-    /* Pills */
-    .pills { display: flex; flex-wrap: wrap; gap: 8px; }
-    .pill { padding: 7px 14px; border-radius: 20px; border: 2px solid var(--border);
-      background: transparent; color: var(--text); font-size: 14px;
-      font-weight: 500; cursor: pointer; transition: all .12s; }
-    .pill.sel { border-color: var(--green); background: var(--green-dim); color: var(--green); }
+    /* ── INPUT CELL ───────────────────────────────────────────────── */
+    .cell { display: flex; flex-direction: column; min-width: 0; }
+    .cell__label {
+      font: 600 10px/1.2 var(--font-sans); letter-spacing: .18em;
+      text-transform: uppercase; color: var(--ink-dim);
+    }
+    .cell__value {
+      margin-top: 4px; padding: 0 0 5px;
+      border: none; border-bottom: var(--rule-dotted);
+      background: transparent; font: 400 17px/1.2 var(--font-serif);
+      color: var(--ink); outline: none; width: 100%;
+    }
+    .cell__value--mono { font: 400 13px/1.3 var(--font-mono); }
+    .cell__value:focus { border-bottom: 1px solid var(--accent); }
+    .cell__value[aria-invalid="true"] { border-bottom: 1px solid var(--state-err); color: var(--state-err); }
+    .cell__value:disabled { color: var(--ink-dim); }
+    .cell__hint { font: 400 10.5px/1.3 var(--font-mono); color: var(--ink-dim); margin-top: 3px; }
 
-    /* Number picker */
-    .numrow { display: flex; align-items: center; gap: 12px; }
-    .nmbtn { width: 44px; height: 44px; border-radius: 50%; border: none;
-      background: var(--card2); color: var(--text); font-size: 24px;
-      cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-    .nmval { flex: 1; text-align: center; font-size: 30px; font-weight: 700; }
+    /* ── SUPPLEMENT ROW ───────────────────────────────────────────── */
+    .supplement-row {
+      display: grid; grid-template-columns: 28px 1fr 28px;
+      column-gap: var(--s-6); align-items: center;
+      padding: var(--s-7) var(--s-9); background: #fff;
+      border-bottom: var(--rule-solid); transition: background 120ms;
+    }
+    .supplement-row:last-child { border-bottom: none; }
+    .supplement-row--checked { background: var(--paper-2); }
+    .supplement-row--hold    { background: var(--paper-hold); }
+    .supplement-check {
+      width: 26px; height: 26px; display: inline-grid; place-items: center;
+      border: 1.5px solid var(--paper-line); background: #fff; cursor: pointer;
+      flex-shrink: 0; transition: all 120ms; font: 700 16px/1 var(--font-sans);
+    }
+    .supplement-check[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .supplement-check:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 2px; }
+    .supplement-row__body { display: flex; flex-direction: column; gap: 2px; }
+    .supplement-row__name { font: 400 16px/1.35 var(--font-serif); color: var(--ink); }
+    .supplement-row__meta { font: 400 11px/1.3 var(--font-mono); color: var(--ink-dim); }
+    .supplement-row__idx  { font: 400 11px/1.3 var(--font-mono); color: var(--ink-dim); text-align: right; }
+    .hold-tag {
+      font: 400 9px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase;
+      color: var(--state-warn); border: 1px solid rgba(217,119,6,.33);
+      padding: 1px 5px; display: inline-block; margin-left: 6px;
+    }
 
-    /* Supplement list */
-    .suplist { display: flex; flex-direction: column; gap: 7px; }
-    .supitem { display: flex; align-items: center; gap: 12px; background: var(--card2);
-      padding: 11px 13px; border-radius: 10px; }
-    .supitem input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--green);
-      cursor: pointer; flex-shrink: 0; }
-    .supname { font-size: 14px; flex: 1; }
-    .supdose { font-size: 12px; color: var(--text2); }
-    .sup-dose-fi { width: 90px !important; font-size: 13px !important;
-      padding: 5px 8px !important; text-align: right; flex-shrink: 0; }
+    /* ── ANNOTATION ───────────────────────────────────────────────── */
+    .annotation-wrap { padding: var(--s-9); }
+    .annotation {
+      border-top: var(--rule-dashed); border-bottom: var(--rule-dashed);
+      padding: var(--s-6) 0; width: 100%; background: transparent;
+      resize: none; outline: none; font: italic 400 13.5px/1.5 var(--font-serif);
+      color: var(--ink-dim); display: block; min-height: 72px;
+    }
+    .annotation:focus { color: var(--ink); }
+    .annotation-meta {
+      margin-top: 8px; display: flex; justify-content: space-between;
+      font: 400 10.5px/1.3 var(--font-mono); color: var(--ink-dim);
+    }
 
-    /* Save button */
-    .savebtn { width: 100%; padding: 15px; border-radius: 13px; font-size: 16px;
-      font-weight: 700; border: none; cursor: pointer; background: var(--green);
-      color: #fff; margin-top: 18px; transition: opacity .15s; }
-    .savebtn:active { opacity: .8; }
+    /* ── PROGRESS BAR ─────────────────────────────────────────────── */
+    .progress-wrap { padding: 0 var(--s-9) var(--s-7); }
+    .progress {
+      height: 6px; background: var(--paper-edge);
+      border: 1px solid var(--paper-line); position: relative;
+    }
+    .progress__fill {
+      position: absolute; inset: 0 auto 0 0;
+      background: var(--state-warn); width: var(--progress, 0%);
+      transition: width 240ms cubic-bezier(.2,0,0,1);
+    }
+    .progress__label {
+      font: 400 10px/1 var(--font-mono); color: var(--ink-dim);
+      margin-top: 5px; text-align: right;
+    }
+
+    /* ── SIGN-AND-FILE FOOTER ─────────────────────────────────────── */
+    .sign-and-file {
+      position: fixed; left: 50%; transform: translateX(-50%);
+      bottom: 0; width: 100%; max-width: 480px;
+      background: var(--navy-dark); border-top: 1px solid var(--accent);
+      padding: var(--s-7) var(--s-9) calc(var(--s-8) + env(safe-area-inset-bottom, 0px));
+      display: flex; flex-direction: column; gap: var(--s-5); z-index: 30;
+    }
+    .saf-meta { display: flex; justify-content: space-between; align-items: flex-end; }
+    .saf-sig { display: flex; flex-direction: column; gap: 3px; }
+    .saf-sig__label {
+      font: 600 9px/1.2 var(--font-sans); letter-spacing: .18em;
+      text-transform: uppercase; color: var(--on-navy-fg-dim);
+    }
+    .saf-sig__name {
+      font: 400 13px/1.3 var(--font-serif); color: var(--on-navy-fg);
+      border-bottom: 1px solid var(--ink-muted); padding-bottom: 3px; width: 140px;
+    }
+    .saf-time { display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
+    .saf-time__label {
+      font: 600 9px/1.2 var(--font-sans); letter-spacing: .18em;
+      text-transform: uppercase; color: var(--on-navy-fg-dim);
+    }
+    .saf-time__val { font: 400 13px/1 var(--font-mono); color: var(--on-navy-fg); }
+
+    /* ── BUTTONS ──────────────────────────────────────────────────── */
+    .btn-primary {
+      width: 100%; padding: 15px var(--s-8);
+      background: var(--accent-bright); color: #fff;
+      border: none; border-radius: var(--r-1);
+      font: 700 14px/1 var(--font-sans); letter-spacing: .22em; text-transform: uppercase;
+      cursor: pointer; transition: background 120ms ease-out, transform 80ms ease-out;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-primary:hover  { background: #4a9fe1; }
+    .btn-primary:active { background: var(--accent); transform: translateY(1px); }
+    .btn-primary:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
+    .btn-primary:disabled { background: var(--ink-muted); cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      width: 100%; padding: 14px var(--s-6);
+      background: transparent; color: var(--on-navy-fg);
+      border: 1px solid var(--ink-muted); border-radius: var(--r-1);
+      font: 600 11.5px/1 var(--font-sans); letter-spacing: .18em; text-transform: uppercase;
+      cursor: pointer; transition: background 120ms;
+    }
+    .btn-secondary:hover  { background: rgba(255,255,255,.06); }
+    .btn-secondary:active { opacity: .7; }
+
+    /* ── ERROR BAND ───────────────────────────────────────────────── */
+    .err-band {
+      font: 400 11.5px/1.3 var(--font-mono); color: var(--state-err);
+      background: var(--paper-hold); border-top: 1px solid var(--state-err);
+      padding: var(--s-5) var(--s-9); display: none;
+    }
+    .err-band.show { display: block; }
+
+    /* ── AUDIT FOOTER ─────────────────────────────────────────────── */
+    .audit-footer {
+      background: var(--paper-edge);
+      padding: var(--s-8) var(--s-9) var(--s-14);
+      font: 400 10.5px/1.8 var(--font-mono); color: var(--ink-dim);
+    }
+    .audit-footer .ok { color: var(--state-ok); }
+
+    /* ── SPINNER ──────────────────────────────────────────────────── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 700ms linear infinite; }
+
+    /* ── NUMBER ROW ───────────────────────────────────────────────── */
+    .num-row {
+      display: flex; align-items: center; gap: var(--s-6);
+      padding: var(--s-7) var(--s-9);
+    }
+    .num-btn {
+      width: 40px; height: 40px; border: 1px solid var(--paper-line);
+      background: var(--paper-2); color: var(--ink); font-size: 22px;
+      cursor: pointer; display: inline-grid; place-items: center;
+      border-radius: var(--r-1); flex-shrink: 0; transition: background 120ms;
+    }
+    .num-btn:hover  { background: var(--paper-edge); }
+    .num-btn:active { background: var(--paper-line); }
+    .num-val { flex: 1; text-align: center; font: 500 30px/1 var(--font-serif); color: var(--ink); }
+    .num-unit { font: 400 11px/1 var(--font-mono); color: var(--ink-dim); }
+
+    /* ── FAST ACTIVE BANNER ───────────────────────────────────────── */
+    .fast-banner {
+      background: var(--navy-mid); border-bottom: 1px solid var(--accent);
+      padding: var(--s-7) var(--s-9); display: flex; align-items: center; gap: var(--s-6);
+    }
+    .fast-banner__code { font: 400 11px/1 var(--font-mono); color: var(--on-navy-fg-dim); min-width: 32px; }
+    .fast-banner__body { flex: 1; min-width: 0; }
+    .fast-banner__type { font: 600 14px/1.2 var(--font-serif); color: var(--on-navy-fg); }
+    .fast-banner__timer { font: 400 13px/1 var(--font-mono); color: var(--state-warn); margin-top: 2px; }
+    .fast-banner__end {
+      background: none; border: 1px solid rgba(220,38,38,.5); border-radius: var(--r-1);
+      color: #fca5a5; font: 600 10px/1 var(--font-sans);
+      letter-spacing: .14em; text-transform: uppercase;
+      padding: 6px 10px; cursor: pointer; flex-shrink: 0; transition: background 120ms;
+    }
+    .fast-banner__end:hover { background: rgba(220,38,38,.15); }
+
+    /* ── CONFIRM RECORD ROW ───────────────────────────────────────── */
+    .confirm-row {
+      display: grid; grid-template-columns: 100px 1fr;
+      border-bottom: var(--rule-solid); padding: var(--s-6) var(--s-9);
+    }
+    .confirm-row:last-child { border-bottom: none; }
+    .confirm-row__key { font: 400 11px/1.3 var(--font-mono); color: var(--ink-dim); }
+    .confirm-row__val { font: 400 16px/1.35 var(--font-serif); color: var(--ink); word-break: break-word; }
+
+    /* ── TAB STRIP ────────────────────────────────────────────────── */
+    .tab-strip {
+      display: flex; overflow-x: auto; padding: var(--s-5) var(--s-7) 0;
+      background: var(--paper-edge); border-bottom: var(--rule-solid);
+      scrollbar-width: none;
+    }
+    .tab-strip::-webkit-scrollbar { display: none; }
+    .tab-chip {
+      padding: var(--s-5) var(--s-7); font: 400 11.5px/1 var(--font-mono);
+      background: transparent; color: var(--ink-dim);
+      border: none; border-bottom: 2px solid transparent;
+      cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      transition: color 120ms, border-color 120ms;
+    }
+    .tab-chip[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+
+    /* ── MISC ─────────────────────────────────────────────────────── */
+    .empty-state {
+      padding: var(--s-14) var(--s-9); text-align: center;
+      font: 400 13px/1.6 var(--font-mono); color: var(--ink-dim);
+    }
+    .section-pad { padding: var(--s-7) var(--s-9); }
+    .divider { height: var(--s-4); background: var(--paper-edge); border-bottom: var(--rule-solid); }
+
+    /* ── REDUCED MOTION ───────────────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0ms !important; animation-duration: 0ms !important;
+      }
+    }
   </style>
 </head>
 <body>
-<div id="app">
-  <header>
-    <div class="logo">🏃 Health Journal</div>
-    <div class="header-dt" id="hdt"></div>
-  </header>
-
-  <div id="status"></div>
-
-  <!-- Fasting Card -->
-  <div class="card fast-card" id="fcard">
-    <div class="fast-row">
-      <span style="font-size:20px">⚡</span>
-      <span class="fast-title">Fasting</span>
-      <span class="badge" id="fbadge">INACTIVE</span>
-    </div>
-    <div id="fast-timer">00:00:00</div>
-    <div id="fast-meta"></div>
-    <div class="fast-btns">
-      <button class="btn btn-green" id="btn-start" onclick="openModal('fast')">Start Fast</button>
-      <button class="btn btn-red"   id="btn-end"   onclick="endFast()" style="display:none">End Fast</button>
-    </div>
+<div class="app-shell">
+  <div class="scroll" id="scroll">
+    <div id="app"></div>
   </div>
-
-  <!-- Quick Log -->
-  <div class="sec">Quick Log</div>
-  <div class="grid">
-    <button class="qbtn" style="--c:#3b82f6" onclick="openModal('supplement')"><span class="qi">💊</span><span class="ql">Supplements</span></button>
-    <button class="qbtn" style="--c:#f59e0b" onclick="openModal('alcohol')"><span class="qi">🍷</span><span class="ql">Alcohol</span></button>
-    <button class="qbtn" style="--c:#8b5cf6" onclick="openModal('massage')"><span class="qi">💆</span><span class="ql">Massage</span></button>
-    <button class="qbtn" style="--c:#ef4444" onclick="openModal('red_light')"><span class="qi">🔴</span><span class="ql">Red Light</span></button>
-    <button class="qbtn" style="--c:#f97316" onclick="openModal('sauna')"><span class="qi">🧖</span><span class="ql">Sauna</span></button>
-    <button class="qbtn" style="--c:#6366f1" onclick="openModal('flight')"><span class="qi">✈️</span><span class="ql">Overnight Flight</span></button>
-    <button class="qbtn" style="--c:#06b6d4" onclick="openModal('timezone')"><span class="qi">🌍</span><span class="ql">Timezone Change</span></button>
-    <button class="qbtn" style="--c:#64748b" onclick="openModal('note')"><span class="qi">📝</span><span class="ql">Note</span></button>
-  </div>
-
-  <!-- Recent Entries -->
-  <div class="sec">Recent</div>
-  <div class="entries" id="entries"><div class="empty">Loading…</div></div>
-</div>
-
-<!-- Modal -->
-<div id="overlay" onclick="overlayClick(event)">
-  <div id="modal">
-    <div class="drag"></div>
-    <div class="mhead">
-      <span class="mtitle" id="mtitle"></span>
-      <button class="mclose" onclick="closeModal()">✕</button>
-    </div>
-    <div class="mbody" id="mbody"></div>
-  </div>
+  <div class="sign-and-file" id="saf" style="display:none"></div>
 </div>
 
 <script>
-// ── CONFIG — replace with your Supabase values ─────────────────────────────────
+// ── CONFIG ─────────────────────────────────────────────────────────────────
 const SB_URL = 'https://omrvqkefmlptsqpbmsxv.supabase.co';
 const SB_KEY = 'sb_publishable_GxibaKni7-in3KQLCz1EgQ_VRIli3Qg';
 
-// ── SUPPLEMENTS ────────────────────────────────────────────────────────────────
+// ── SUPPLEMENTS ────────────────────────────────────────────────────────────
 const SUPS = [
-  { name:'Tirzepatide',          dose:'2.0mg' },
-  { name:'Repatha',              dose:'23.5mg' },
-  { name:'Vitamin D3',           dose:'10,000 IU' },
-  { name:'Nicotinamide Riboside',dose:'1g' },
-  { name:'Magnesium Glycinate',  dose:'360mg' },
-  { name:'Omega-3',              dose:'4g' },
-  { name:'Creatine Monohydrate', dose:'20g' },
-  { name:'Glycine',              dose:'3g' },
-  { name:'GHK-Cu',               dose:'2.0mg' },
+  { name:'Tirzepatide',           dose:'2.0mg',     class:'GLP-1/GIP',  route:'inj', hold:true  },
+  { name:'Repatha',               dose:'23.5mg',    class:'PCSK9 mAb',  route:'inj', hold:false },
+  { name:'Vitamin D3',            dose:'10,000 IU', class:'vitamin',    route:'po',  hold:false },
+  { name:'Nicotinamide Riboside', dose:'1g',        class:'NAD+ prec.', route:'po',  hold:false },
+  { name:'Magnesium Glycinate',   dose:'360mg',     class:'mineral',    route:'po',  hold:false },
+  { name:'Omega-3',               dose:'4g',        class:'EPA/DHA',    route:'po',  hold:false },
+  { name:'Creatine Monohydrate',  dose:'20g',       class:'ergogenic',  route:'po',  hold:false },
+  { name:'Glycine',               dose:'3g',        class:'amino',      route:'po',  hold:false },
+  { name:'GHK-Cu',                dose:'2.0mg',     class:'peptide',    route:'sc',  hold:false },
 ];
 
-// ── ENTRY TYPE META ────────────────────────────────────────────────────────────
-const TMETA = {
-  fast:       { label:'Fast',           icon:'⚡', color:'#10b981', title:'⚡ Start Fast' },
-  supplement: { label:'Supplements',    icon:'💊', color:'#3b82f6', title:'💊 Supplements' },
-  alcohol:    { label:'Alcohol',        icon:'🍷', color:'#f59e0b', title:'🍷 Alcohol' },
-  massage:    { label:'Massage',        icon:'💆', color:'#8b5cf6', title:'💆 Massage' },
-  red_light:  { label:'Red Light',      icon:'🔴', color:'#ef4444', title:'🔴 Red Light Therapy' },
-  sauna:      { label:'Sauna',          icon:'🧖', color:'#f97316', title:'🧖 Sauna' },
-  flight:     { label:'Overnight Flight',icon:'✈️',color:'#6366f1', title:'✈️ Overnight Flight' },
-  timezone:   { label:'Timezone Change',icon:'🌍', color:'#06b6d4', title:'🌍 Timezone Change' },
-  note:       { label:'Note',           icon:'📝', color:'#64748b', title:'📝 Note' },
+// ── ENTRY META ─────────────────────────────────────────────────────────────
+const EMETA = {
+  fast:       { code:'FA', label:'Fast',             sub:'fasting window log'    },
+  supplement: { code:'SU', label:'Supplements',      sub:'daily stack admin.'    },
+  red_light:  { code:'RL', label:'Red Light',        sub:'photobiomodulation'    },
+  sauna:      { code:'SA', label:'Sauna',            sub:'thermal recovery'      },
+  alcohol:    { code:'AL', label:'Alcohol',          sub:'consumption event'     },
+  massage:    { code:'MA', label:'Massage',          sub:'soft tissue recovery'  },
+  flight:     { code:'FL', label:'Overnight Flight', sub:'sleep disruption log'  },
+  timezone:   { code:'TZ', label:'Timezone Change',  sub:'circadian context'     },
+  note:       { code:'NT', label:'Note',             sub:'free-text observation' },
 };
 
-// ── INIT ───────────────────────────────────────────────────────────────────────
-let db = null;
-let fastTick = null;
+// ── FAST PROTOCOLS ─────────────────────────────────────────────────────────
+const PROTOCOLS = [
+  { code:'P-01', label:'16:8', sub:'16 h fast · 8 h eat',    window_hours:16, eat_hours:8 },
+  { code:'P-02', label:'18:6', sub:'18 h fast · 6 h eat',    window_hours:18, eat_hours:6 },
+  { code:'P-03', label:'20:4', sub:'20 h fast · 4 h eat',    window_hours:20, eat_hours:4 },
+  { code:'P-04', label:'40hr', sub:'extended fast · 2 days', window_hours:40, eat_hours:0 },
+  { code:'P-05', label:'OMAD', sub:'one meal a day',          window_hours:23, eat_hours:1 },
+];
 
+// ── STATE ──────────────────────────────────────────────────────────────────
+let db           = null;
+let fastTick     = null;
+let safClockTick = null;
+let currentSubmit = null;
+let currentType   = null;
+let confirmEntry  = null;
+
+// ── INIT ───────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  if (SB_URL !== 'YOUR_SUPABASE_URL') {
+  if (SB_URL && !SB_URL.includes('YOUR_')) {
     db = supabase.createClient(SB_URL, SB_KEY);
-  } else {
-    toast('⚠️ Add your Supabase URL & Key to the app config', 'err', 8000);
   }
-  tick();
-  setInterval(tick, 1000);
-  initFast();
-  loadEntries();
+  window.addEventListener('hashchange', render);
+  if (!location.hash || location.hash === '#') location.hash = '#home';
+  else render();
 });
 
-function tick() {
-  const n = new Date();
-  document.getElementById('hdt').innerHTML =
-    n.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
-    + '<br>' + n.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+// ── ROUTER ─────────────────────────────────────────────────────────────────
+function navigate(hash) { location.hash = hash; }
+
+function render() {
+  const hash = location.hash || '#home';
+  const scroll = document.getElementById('scroll');
+  hideSaf();
+
+  if (hash === '#home' || hash === '#') {
+    scroll.classList.add('scroll--nofooter');
+    renderHome();
+  } else if (hash === '#confirm') {
+    scroll.classList.add('scroll--nofooter');
+    renderConfirm();
+  } else if (hash.startsWith('#log/')) {
+    scroll.classList.remove('scroll--nofooter');
+    renderForm(hash.replace('#log/', ''));
+  } else {
+    scroll.classList.add('scroll--nofooter');
+    renderHome();
+  }
+  document.getElementById('scroll').scrollTop = 0;
 }
 
-// ── FASTING ────────────────────────────────────────────────────────────────────
-function initFast() {
-  const f = activeFast();
-  if (f) setFastUI(true, f.type, f.startedAt);
-}
-
-const activeFast   = () => { const d = localStorage.getItem('jf'); return d ? JSON.parse(d) : null; };
-const saveFast     = (o) => localStorage.setItem('jf', JSON.stringify(o));
-const clearFastLs  = () => localStorage.removeItem('jf');
-
-function setFastUI(on, type, startedAt) {
-  const card  = document.getElementById('fcard');
-  const badge = document.getElementById('fbadge');
-  const timer = document.getElementById('fast-timer');
-  const meta  = document.getElementById('fast-meta');
-  const bS    = document.getElementById('btn-start');
-  const bE    = document.getElementById('btn-end');
-
+// ── HOME SCREEN ────────────────────────────────────────────────────────────
+function renderHome() {
   clearInterval(fastTick);
-  if (on) {
-    card.classList.add('on');
-    badge.textContent = 'ACTIVE'; badge.classList.add('on');
-    timer.style.display = 'block';
-    meta.textContent = type + ' · started ' +
-      new Date(startedAt).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
-    bS.style.display = 'none'; bE.style.display = '';
-    const update = () => {
-      const ms = Date.now() - new Date(startedAt).getTime();
-      timer.textContent = fmtDur(ms);
-    };
-    update();
-    fastTick = setInterval(update, 1000);
-  } else {
-    card.classList.remove('on');
-    badge.textContent = 'INACTIVE'; badge.classList.remove('on');
-    timer.style.display = 'none';
-    meta.textContent = '';
-    bS.style.display = ''; bE.style.display = 'none';
-  }
-}
+  const app = document.getElementById('app');
+  const now = new Date();
+  const activeFast = getActiveFast();
 
-async function startFast(type, startedAt) {
-  startedAt = startedAt || new Date().toISOString();
-  let id = null;
-  if (db) {
-    const { data } = await db.from('journal_entries')
-      .insert({ entry_type:'fast', started_at:startedAt, metadata:{ fast_type:type } })
-      .select('id').single();
-    if (data) id = data.id;
-  }
-  saveFast({ type, startedAt, id });
-  setFastUI(true, type, startedAt);
-  closeModal();
-  toast('✓ Fast started');
-  loadEntries();
-}
+  app.innerHTML = `
+    <div class="med-header">
+      <div class="med-header__top">
+        <span class="rx-badge">&#8478;</span>
+        <span class="header-eyebrow">HEALTH.DB &middot; JOURNAL</span>
+        <span class="header-sync"><span class="header-sync__dot"></span>LIVE</span>
+      </div>
+      <div class="header-sub">${fmtHeaderDate(now)}</div>
+      <div class="header-title">Today's Record</div>
+    </div>
 
-async function endFast() {
-  const f = activeFast();
-  if (!f) return;
-  const endedAt = new Date().toISOString();
-  const dur = Date.now() - new Date(f.startedAt).getTime();
-  if (db && f.id) {
-    await db.from('journal_entries').update({ ended_at:endedAt }).eq('id', f.id);
-  }
-  clearFastLs();
-  setFastUI(false);
-  toast('✓ Fast ended · ' + fmtDur(dur));
-  loadEntries();
-}
+    ${activeFast ? `
+    <div class="fast-banner" id="fast-banner">
+      <span class="fast-banner__code">FA</span>
+      <div class="fast-banner__body">
+        <div class="fast-banner__type">${activeFast.type} &middot; ACTIVE FAST</div>
+        <div class="fast-banner__timer" id="banner-timer">&#8212;</div>
+      </div>
+      <button class="fast-banner__end" onclick="endFast()">END FAST</button>
+    </div>` : ''}
 
-// ── MODAL ──────────────────────────────────────────────────────────────────────
-function openModal(type) {
-  document.getElementById('mtitle').textContent = TMETA[type]?.title || type;
-  document.getElementById('mbody').innerHTML = buildForm(type);
-  document.getElementById('overlay').classList.add('show');
-  document.body.style.overflow = 'hidden';
-}
-function closeModal() {
-  document.getElementById('overlay').classList.remove('show');
-  document.body.style.overflow = '';
-}
-function overlayClick(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
+    <div class="section">
+      <div class="section-head">
+        <span class="section-head__no">&sect;01</span>
+        <span class="section-head__title">Today's Log</span>
+        <span class="section-head__right" id="today-count">&#8212;</span>
+      </div>
+      <div id="today-entries"><div class="empty-state">loading&hellip;</div></div>
+    </div>
 
-// ── FORM BUILDER ───────────────────────────────────────────────────────────────
-function buildForm(type) {
-  const notesField = `
-    <div class="fg">
-      <label class="fl">Notes (optional)</label>
-      <textarea class="fta" id="f-notes" placeholder="Any notes…"></textarea>
+    <div class="divider"></div>
+
+    <div class="section">
+      <div class="section-head">
+        <span class="section-head__no">&sect;02</span>
+        <span class="section-head__title">Log Entry</span>
+        <span class="section-head__right">tap to open</span>
+      </div>
+      ${Object.entries(EMETA).map(([type, m]) => `
+        <button class="entry-class" onclick="navigate('#log/${type}')">
+          <span class="entry-class__code">${m.code}</span>
+          <span class="entry-class__body">
+            <span class="entry-class__name">${m.label}</span>
+            <span class="entry-class__sub">${m.sub}</span>
+          </span>
+          <span class="entry-class__chev">&rarr;</span>
+        </button>`).join('')}
+    </div>
+
+    <div class="audit-footer">
+      &middot; subject 01 &middot; health.db<br>
+      &middot; journal v3 &middot; medical record ui<br>
+      <span class="ok">+</span> data writes to supabase in real-time
     </div>`;
 
-  const durPicker = (id, def, step=5) => `
-    <div class="fg">
-      <label class="fl">Duration (minutes)</label>
-      <div class="numrow">
-        <button class="nmbtn" onclick="adj('${id}',-${step},${step})">−</button>
-        <div class="nmval" id="${id}">${def}</div>
-        <button class="nmbtn" onclick="adj('${id}',${step})">+</button>
-      </div>
-    </div>`;
+  loadTodayEntries();
+  if (activeFast) startFastBannerTimer(activeFast);
+}
 
-  const pills = (id, opts, selIdx=0) => `
-    <div class="pills" id="${id}">
-      ${opts.map((o,i) => `<button class="pill${i===selIdx?' sel':''}" onclick="selPill(this,'${id}')">${o}</button>`).join('')}
-    </div>`;
-
-  switch (type) {
-    case 'fast': return `
-      <div class="fg"><label class="fl">Fast Type</label>
-        ${pills('p-fast',['16:8','18:6','36-Hour','Other'])}
-      </div>
-      <div class="fg">
-        <label class="fl">Start Time</label>
-        <div class="pills">
-          <button class="pill sel" id="fm-now" onclick="setFastMode('now')">Start Now</button>
-          <button class="pill" id="fm-custom" onclick="setFastMode('custom')">Custom Time</button>
-        </div>
-      </div>
-      <div class="fg" id="fg-fast-custom" style="display:none">
-        <label class="fl">Time (24-hour format, e.g. 17:00)</label>
-        <input class="fi" id="f-fast-time" type="time">
-      </div>
-      ${notesField}
-      <button class="savebtn" onclick="submitFast()">Start Fast</button>`;
-
-    case 'supplement': { const sd = getStoredDoses(); return `
-      <p style="color:var(--text2);font-size:13px;margin-bottom:12px">Check what you took and confirm doses:</p>
-      <div class="suplist">
-        ${SUPS.map((s,i)=>{ const ld=sd[s.name]||s.dose; return `
-          <div class="supitem">
-            <input type="checkbox" id="sc-${i}">
-            <span class="supname">${s.name}</span>
-            <input class="fi sup-dose-fi" id="sd-${i}" value="${ld}" placeholder="${s.dose}">
-          </div>`; }).join('')}
-      </div>
-      ${notesField}
-      <button class="savebtn" onclick="logSupplements()">Log Supplements</button>`; }
-
-    case 'alcohol': return `
-      <div class="fg"><label class="fl">Drinks</label>
-        <div class="numrow">
-          <button class="nmbtn" onclick="adj('f-drinks',-1,1)">−</button>
-          <div class="nmval" id="f-drinks">1</div>
-          <button class="nmbtn" onclick="adj('f-drinks',1)">+</button>
-        </div>
-      </div>
-      <div class="fg"><label class="fl">Type</label>
-        ${pills('p-alc',['Wine','Beer','Spirits','Other'])}
-      </div>
-      ${notesField}
-      <button class="savebtn" onclick="save('alcohol',{drinks:numVal('f-drinks'),type:selVal('p-alc')})">Log Alcohol</button>`;
-
-    case 'massage': return `
-      ${durPicker('f-mdur',60,10)}
-      <div class="fg"><label class="fl">Type</label>
-        ${pills('p-msg',['Deep Tissue','Swedish','Sports','Other'])}
-      </div>
-      ${notesField}
-      <button class="savebtn" onclick="save('massage',{duration_min:numVal('f-mdur'),type:selVal('p-msg')})">Log Massage</button>`;
-
-    case 'red_light': return `
-      ${durPicker('f-rldur',20)}
-      <div class="fg"><label class="fl">Body Area (optional)</label>
-        <input class="fi" id="f-rlzone" placeholder="e.g. Full body, Face, Joints…">
-      </div>
-      ${notesField}
-      <button class="savebtn" onclick="save('red_light',{duration_min:numVal('f-rldur'),zone:v('f-rlzone')})">Log Red Light</button>`;
-
-    case 'sauna': return `
-      ${durPicker('f-sdur',20)}
-      <div class="fg"><label class="fl">Temperature °F (optional)</label>
-        <input class="fi" id="f-stemp" type="number" placeholder="e.g. 180">
-      </div>
-      <div class="fg"><label class="fl">Type</label>
-        ${pills('p-sau',['Dry','Infrared','Steam'])}
-      </div>
-      ${notesField}
-      <button class="savebtn" onclick="save('sauna',{duration_min:numVal('f-sdur'),temp_f:v('f-stemp')||null,type:selVal('p-sau')})">Log Sauna</button>`;
-
-    case 'flight': return `
-      <div class="fg"><label class="fl">From</label>
-        <input class="fi" id="f-ffrom" placeholder="Departure city / airport">
-      </div>
-      <div class="fg"><label class="fl">To</label>
-        <input class="fi" id="f-fto" placeholder="Arrival city / airport">
-      </div>
-      <div class="fg"><label class="fl">Departure Time</label>
-        <input class="fi" id="f-fdep" type="time">
-      </div>
-      ${notesField}
-      <button class="savebtn" onclick="save('flight',{from:v('f-ffrom'),to:v('f-fto'),departure_time:v('f-fdep')})">Log Flight</button>`;
-
-    case 'timezone': return `
-      <div class="fg"><label class="fl">From Timezone</label>
-        <input class="fi" id="f-tzfrom" placeholder="e.g. EST, GMT-5">
-      </div>
-      <div class="fg"><label class="fl">To Timezone</label>
-        <input class="fi" id="f-tzto" placeholder="e.g. GMT, CET">
-      </div>
-      <div class="fg"><label class="fl">Hours Difference</label>
-        <input class="fi" id="f-tzdiff" type="number" placeholder="e.g. +5 or -3">
-      </div>
-      ${notesField}
-      <button class="savebtn" onclick="save('timezone',{from_tz:v('f-tzfrom'),to_tz:v('f-tzto'),offset_hours:v('f-tzdiff')})">Log Timezone</button>`;
-
-    case 'note': return `
-      <div class="fg"><label class="fl">Note</label>
-        <textarea class="fta" id="f-notetext" style="min-height:120px" placeholder="Symptoms, diet, observations…"></textarea>
-      </div>
-      <div class="fg"><label class="fl">Category</label>
-        ${pills('p-ncat',['General','Diet','Symptom','Recovery','Sleep'])}
-      </div>
-      <button class="savebtn" onclick="save('note',{text:v('f-notetext'),category:selVal('p-ncat')})">Save Note</button>`;
-
-    default: return '';
+function startFastBannerTimer(fast) {
+  clearInterval(fastTick);
+  function update() {
+    const el = document.getElementById('banner-timer');
+    if (!el) { clearInterval(fastTick); return; }
+    const ms  = Date.now() - new Date(fast.startedAt).getTime();
+    const pct = Math.min(Math.round((ms / (fast.window_hours * 3600000)) * 100), 100);
+    el.textContent = fmtDur(ms) + ' · ' + pct + '%';
   }
+  update();
+  fastTick = setInterval(update, 1000);
 }
 
-// ── FORM HELPERS ───────────────────────────────────────────────────────────────
-function selPill(el, gid) {
-  document.querySelectorAll(`#${gid} .pill`).forEach(p => p.classList.remove('sel'));
-  el.classList.add('sel');
-}
-function selVal(gid) {
-  return document.querySelector(`#${gid} .pill.sel`)?.textContent || null;
-}
-function adj(id, d, min=0) {
-  const el = document.getElementById(id);
-  el.textContent = Math.max(min, (parseInt(el.textContent)||0) + d);
-}
-function numVal(id) { return parseInt(document.getElementById(id)?.textContent) || 0; }
-function v(id)      { return document.getElementById(id)?.value?.trim() || null; }
-function checkedSups() {
-  return SUPS.reduce((acc, s, i) => {
-    if (document.getElementById(`sc-${i}`)?.checked) {
-      const dose = document.getElementById(`sd-${i}`)?.value?.trim() || s.dose;
-      acc.push({ name: s.name, dose });
-    }
-    return acc;
-  }, []);
-}
-function logSupplements() {
-  const taken = checkedSups();
-  if (!taken.length) { toast('Select at least one supplement', 'err'); return; }
-  saveDoses(taken);
-  save('supplement', { taken });
-}
-function getStoredDoses() {
-  try { return JSON.parse(localStorage.getItem('sup_doses') || '{}'); } catch { return {}; }
-}
-function saveDoses(taken) {
-  const stored = getStoredDoses();
-  taken.forEach(({ name, dose }) => { if (dose) stored[name] = dose; });
-  localStorage.setItem('sup_doses', JSON.stringify(stored));
-}
-function setFastMode(mode) {
-  document.getElementById('fm-now').classList.toggle('sel', mode === 'now');
-  document.getElementById('fm-custom').classList.toggle('sel', mode === 'custom');
-  document.getElementById('fg-fast-custom').style.display = mode === 'custom' ? '' : 'none';
-  if (mode === 'custom') document.getElementById('f-fast-time').focus();
-}
-
-// ── SAVE ───────────────────────────────────────────────────────────────────────
-async function submitFast() {
-  const fastType = selVal('p-fast') || '16:8';
-  const isCustom = document.getElementById('fm-custom')?.classList.contains('sel');
-  let startedAt;
-  if (isCustom) {
-    const tv = document.getElementById('f-fast-time')?.value;
-    if (!tv) { toast('Enter a start time', 'err'); return; }
-    const [h, m] = tv.split(':').map(Number);
-    const d = new Date(); d.setHours(h, m, 0, 0);
-    if (d > new Date()) d.setDate(d.getDate() - 1); // past time today assumed; future = yesterday
-    startedAt = d.toISOString();
-  } else {
-    startedAt = new Date().toISOString();
-  }
-  await startFast(fastType, startedAt);
-}
-
-async function save(type, metadata) {
-  if (!db) { toast('Configure Supabase first', 'err'); return; }
-  if (type === 'supplement' && (!metadata.taken || !metadata.taken.length)) {
-    toast('Select at least one supplement', 'err'); return;
-  }
-  const notes = v('f-notes');
-  const { error } = await db.from('journal_entries').insert({
-    entry_type: type,
-    started_at: new Date().toISOString(),
-    notes: notes || null,
-    metadata,
-  });
-  if (error) { toast('✗ ' + error.message, 'err'); return; }
-  closeModal();
-  toast('✓ Logged');
-  loadEntries();
-}
-
-// ── RECENT ENTRIES ─────────────────────────────────────────────────────────────
-async function loadEntries() {
-  const el = document.getElementById('entries');
-  if (!db) { el.innerHTML = '<div class="empty">Configure Supabase to see entries</div>'; return; }
+async function loadTodayEntries() {
+  const el      = document.getElementById('today-entries');
+  const countEl = document.getElementById('today-count');
+  if (!el) return;
+  if (!db) { el.innerHTML = '<div class="empty-state">configure supabase</div>'; return; }
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const { data, error } = await db.from('journal_entries')
-    .select('*').order('started_at', { ascending:false }).limit(20);
-  if (error || !data?.length) {
-    el.innerHTML = '<div class="empty">No entries yet — start logging!</div>'; return;
+    .select('*').gte('started_at', todayStart.toISOString())
+    .order('started_at', { ascending: false });
+  if (error || !data || !data.length) {
+    el.innerHTML = '<div class="empty-state">no entries logged today</div>';
+    if (countEl) countEl.textContent = '0 entries';
+    return;
   }
+  if (countEl) countEl.textContent = data.length + (data.length === 1 ? ' entry' : ' entries');
   el.innerHTML = data.map(e => {
-    const tm = TMETA[e.entry_type] || { label:e.entry_type, icon:'•', color:'#64748b' };
-    const m  = e.metadata || {};
-    let detail = '';
-    switch(e.entry_type) {
-      case 'fast':
-        detail = (m.fast_type||'') + (e.ended_at
-          ? ' · '+fmtDur(new Date(e.ended_at)-new Date(e.started_at))
-          : ' · in progress'); break;
-      case 'supplement': detail = (m.taken||[]).map(t=>typeof t==='string'?t:`${t.name} ${t.dose}`).join(', '); break;
-      case 'alcohol':    detail = `${m.drinks||''} ${m.type||'drink'}${m.drinks>1?'s':''}`; break;
-      case 'massage':    detail = `${m.duration_min||''}min · ${m.type||''}`; break;
-      case 'red_light':  detail = `${m.duration_min||''}min${m.zone?' · '+m.zone:''}`; break;
-      case 'sauna':      detail = `${m.duration_min||''}min ${m.type||''}${m.temp_f?' · '+m.temp_f+'°F':''}`; break;
-      case 'flight':     detail = `${m.from||''} → ${m.to||''}`; break;
-      case 'timezone':   detail = `${m.from_tz||''} → ${m.to_tz||''}`; break;
-      case 'note':       detail = (m.text||e.notes||'').substring(0,60); break;
-    }
-    if (e.notes && e.entry_type!=='note') detail = (detail?detail+' · ':'')+e.notes.substring(0,40);
-    return `<div class="entry">
-      <div class="dot" style="background:${tm.color}"></div>
-      <div class="ec">
-        <div class="et">${tm.icon} ${tm.label}</div>
-        <div class="ed">${detail||'—'}</div>
-      </div>
-      <div class="etime">${ago(new Date(e.started_at))}</div>
+    const m      = EMETA[e.entry_type] || { code: e.entry_type.substring(0,2).toUpperCase(), label: e.entry_type };
+    const meta   = e.metadata || {};
+    const detail = entryDetail(e.entry_type, meta, e.notes);
+    const status = (e.entry_type === 'fast' && !e.ended_at) ? 'active' : 'complete';
+    return `<div class="intervention">
+      <span class="intervention__code">${m.code}</span>
+      <span class="intervention__type">${m.label}</span>
+      <span class="intervention__value">${ago(new Date(e.started_at))}</span>
+      <span></span>
+      <span class="intervention__admin">${detail}</span>
+      <span class="intervention__pill">
+        <span class="pill pill--${status}">${status === 'active' ? 'IN PROGRESS' : 'COMPLETE'}</span>
+      </span>
     </div>`;
   }).join('');
 }
 
-// ── UTILS ──────────────────────────────────────────────────────────────────────
-function fmtDur(ms) {
-  const h=Math.floor(ms/3600000), m=Math.floor((ms%3600000)/60000), s=Math.floor((ms%60000)/1000);
-  return `${pad(h)}:${pad(m)}:${pad(s)}`;
-}
-function pad(n) { return String(n).padStart(2,'0'); }
-function ago(d) {
-  const diff = Date.now()-d;
-  if (diff<60000) return 'just now';
-  if (diff<3600000) return Math.floor(diff/60000)+'m ago';
-  if (diff<86400000) return Math.floor(diff/3600000)+'h ago';
-  if (diff<604800000) return Math.floor(diff/86400000)+'d ago';
-  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
-}
-function toast(msg, type='ok', ms=2800) {
-  const el = document.getElementById('status');
-  el.textContent = msg;
-  el.className = type==='err' ? 's-err' : 's-ok';
-  setTimeout(() => { el.className=''; el.style.display='none'; }, ms);
+function entryDetail(type, meta, notes) {
+  switch (type) {
+    case 'fast':       return (meta.fast_type || meta.protocol_label || '') + (notes ? ' · ' + notes.substring(0,30) : '');
+    case 'supplement': return (meta.taken || []).length + ' supplements logged';
+    case 'red_light':  return (meta.duration_min || '') + ' min' + (meta.zone || meta.area ? ' · ' + (meta.zone || meta.area) : '');
+    case 'sauna':      return (meta.duration_min || '') + ' min · ' + (meta.type || meta.heat_type || '');
+    case 'alcohol':    return (meta.drinks || '') + ' drink' + ((meta.drinks > 1) ? 's' : '') + (meta.type ? ' · ' + meta.type : '');
+    case 'massage':    return (meta.duration_min || '') + ' min · ' + (meta.type || '');
+    case 'flight':     return (meta.from || '') + ' → ' + (meta.to || '');
+    case 'timezone':   return (meta.from_tz || '') + ' → ' + (meta.to_tz || '');
+    case 'note':       return (meta.text || notes || '').substring(0, 50);
+    default:           return notes || '';
+  }
 }
 
-// ── SERVICE WORKER ─────────────────────────────────────────────────────────────
+// ── FORM DISPATCHER ────────────────────────────────────────────────────────
+function renderForm(type) {
+  currentType = type;
+  const meta = EMETA[type];
+  if (!meta) { navigate('#home'); return; }
+  switch (type) {
+    case 'fast':       buildFastForm(meta);       break;
+    case 'supplement': buildSupplementForm(meta); break;
+    case 'sauna':      buildSaunaForm(meta);      break;
+    case 'red_light':  buildRedLightForm(meta);   break;
+    case 'alcohol':    buildAlcoholForm(meta);    break;
+    case 'massage':    buildMassageForm(meta);    break;
+    case 'flight':     buildFlightForm(meta);     break;
+    case 'timezone':   buildTimezoneForm(meta);   break;
+    case 'note':       buildNoteForm(meta);       break;
+    default: navigate('#home');
+  }
+  showSaf(type === 'fast' ? 'START FAST · SIGN &amp; FILE' : 'LOG IT · SIGN &amp; FILE');
+}
+
+// ── FAST FORM ──────────────────────────────────────────────────────────────
+function buildFastForm(meta) {
+  const app  = document.getElementById('app');
+  const nowV = toLocalDatetimeInput(new Date());
+  app.innerHTML = `
+    ${formHeader(meta, '01', 'Start fast')}
+    <div class="section">
+      <div class="section-head">
+        <span class="section-head__no">&sect;01</span>
+        <span class="section-head__title">Protocol</span>
+        <span class="section-head__right">single-select</span>
+      </div>
+      <div role="radiogroup" id="protocol-group">
+        ${PROTOCOLS.map((p, i) => `
+          <div class="option-row" role="radio" aria-selected="${i === 0}"
+               tabindex="${i === 0 ? 0 : -1}" onclick="selectOption(this,'protocol-group')"
+               data-code="${p.code}" data-window="${p.window_hours}" data-eat="${p.eat_hours}">
+            <span class="radio-circle">${i === 0 ? '●' : ''}</span>
+            <div class="option-row__body">
+              <span class="option-row__name">${p.label}</span>
+              <span class="option-row__sub">${p.sub}</span>
+            </div>
+            <span class="option-row__code">${p.code}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-head">
+        <span class="section-head__no">&sect;02</span>
+        <span class="section-head__title">Window</span>
+      </div>
+      <div class="field-grid">
+        <label class="cell">
+          <span class="cell__label">STARTED AT</span>
+          <input class="cell__value cell__value--mono" id="f-fast-start" type="datetime-local" value="${nowV}">
+          <span class="cell__hint">default: now</span>
+        </label>
+        <label class="cell">
+          <span class="cell__label">LAST MEAL AT</span>
+          <input class="cell__value cell__value--mono" id="f-fast-lastmeal" type="datetime-local">
+          <span class="cell__hint">optional</span>
+        </label>
+        <label class="cell">
+          <span class="cell__label">EXPECTED CLOSE</span>
+          <input class="cell__value cell__value--mono" id="f-fast-close" type="datetime-local" disabled>
+          <span class="cell__hint">auto-derived</span>
+        </label>
+        <label class="cell">
+          <span class="cell__label">ELAPSED</span>
+          <input class="cell__value cell__value--mono" id="f-fast-elapsed" disabled value="&#8212;">
+          <span class="cell__hint">live</span>
+        </label>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress"><div class="progress__fill" id="fast-prog" style="--progress:0%"></div></div>
+        <div class="progress__label" id="fast-prog-label">0%</div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-head">
+        <span class="section-head__no">&sect;03</span>
+        <span class="section-head__title">Annotation</span>
+        <span class="section-head__right">optional</span>
+      </div>
+      <div class="annotation-wrap">
+        <textarea class="annotation" id="f-fast-note" maxlength="500" placeholder="Notes&hellip;"></textarea>
+        <div class="annotation-meta"><span id="f-fast-nc">0 / 500 char</span></div>
+      </div>
+    </div>`;
+  document.getElementById('f-fast-start').addEventListener('change', updateFastDerived);
+  document.querySelectorAll('#protocol-group .option-row').forEach(r => r.addEventListener('click', updateFastDerived));
+  document.getElementById('f-fast-note').addEventListener('input', function() {
+    document.getElementById('f-fast-nc').textContent = this.value.length + ' / 500 char';
+  });
+  updateFastDerived();
+  currentSubmit = submitFast;
+}
+
+function updateFastDerived() {
+  const sel     = document.querySelector('#protocol-group [aria-selected="true"]');
+  const windowH = sel ? parseInt(sel.dataset.window) : 16;
+  const startV  = document.getElementById('f-fast-start') && document.getElementById('f-fast-start').value;
+  if (!startV) return;
+  const start   = new Date(startV);
+  const close   = new Date(start.getTime() + windowH * 3600000);
+  const closeEl = document.getElementById('f-fast-close');
+  if (closeEl) closeEl.value = toLocalDatetimeInput(close);
+  const elapsed = Date.now() - start.getTime();
+  if (elapsed > 0) {
+    const elEl = document.getElementById('f-fast-elapsed');
+    if (elEl) elEl.value = fmtDur(elapsed);
+    const pct = Math.min(Math.round((elapsed / (windowH * 3600000)) * 100), 100);
+    const pf  = document.getElementById('fast-prog');
+    const pl  = document.getElementById('fast-prog-label');
+    if (pf) pf.style.setProperty('--progress', pct + '%');
+    if (pl) pl.textContent = pct + '%';
+  }
+}
+
+async function submitFast() {
+  const sel = document.querySelector('#protocol-group [aria-selected="true"]');
+  if (!sel) { showErr('Select a protocol'); return; }
+  const protocol  = PROTOCOLS.find(function(p) { return p.code === sel.dataset.code; }) || PROTOCOLS[0];
+  const startV    = document.getElementById('f-fast-start') && document.getElementById('f-fast-start').value;
+  if (!startV) { showErr('Start time required'); return; }
+  const startedAt = new Date(startV).toISOString();
+  const lastMealEl = document.getElementById('f-fast-lastmeal');
+  const lastMealV  = lastMealEl ? lastMealEl.value : '';
+  const noteEl     = document.getElementById('f-fast-note');
+  const note       = noteEl ? noteEl.value.trim() || null : null;
+  const expectedClose = new Date(new Date(startV).getTime() + protocol.window_hours * 3600000).toISOString();
+  const metadata = {
+    fast_type: protocol.label, protocol_code: protocol.code,
+    protocol_label: protocol.label, window_hours: protocol.window_hours,
+    eat_hours: protocol.eat_hours,
+    last_meal_at: lastMealV ? new Date(lastMealV).toISOString() : null,
+    expected_close_at: expectedClose,
+  };
+  setBtnLoading(true); clearErr();
+  if (!db) { showErr('Supabase not configured'); setBtnLoading(false); return; }
+  const result = await db.from('journal_entries').insert({
+    entry_type: 'fast', started_at: startedAt, ended_at: null, notes: note, metadata: metadata,
+  }).select('*').single();
+  setBtnLoading(false);
+  if (result.error) { showErr(result.error.message || 'could not write entry'); autoHideErr(6000); return; }
+  saveActiveFast({ type: protocol.label, startedAt: startedAt, id: result.data.id, window_hours: protocol.window_hours });
+  confirmEntry = result.data;
+  navigate('#confirm');
+}
+
+// ── SUPPLEMENT FORM ────────────────────────────────────────────────────────
+function buildSupplementForm(meta) {
+  const app   = document.getElementById('app');
+  const doses = getStoredDoses();
+  app.innerHTML = `
+    ${formHeader(meta, '02', "Today's stack",
+      '<span id="sup-count">0</span> / ' + SUPS.length + ' selected')}
+    <div class="tab-strip" id="time-tabs">
+      ${['Now','07:00','12:00','18:00','Custom'].map(function(t, i) {
+        return '<button class="tab-chip" aria-selected="' + (i === 0) + '" onclick="selectTab(this,\'time-tabs\')" data-time="' + t + '">' + t + '</button>';
+      }).join('')}
+    </div>
+    <div id="custom-time-wrap" style="display:none" class="section-pad">
+      <label class="cell">
+        <span class="cell__label">TAKEN AT</span>
+        <input class="cell__value cell__value--mono" id="f-sup-custom" type="datetime-local" value="${toLocalDatetimeInput(new Date())}">
+      </label>
+    </div>
+    <div class="section">
+      <div class="section-head">
+        <span class="section-head__no">&sect;01</span>
+        <span class="section-head__title">Current stack &middot; check administered</span>
+        <span class="section-head__right">${SUPS.length} items</span>
+      </div>
+      ${SUPS.map(function(s, i) {
+        var d = doses[s.name] || s.dose;
+        return '<div class="supplement-row' + (s.hold ? ' supplement-row--hold' : '') + '" id="sup-row-' + i + '">' +
+          '<button class="supplement-check" role="checkbox" aria-checked="false" id="sup-chk-' + i + '" onclick="toggleSup(' + i + ')"></button>' +
+          '<div class="supplement-row__body">' +
+          '<span class="supplement-row__name">' + s.name + (s.hold ? '<span class="hold-tag">HOLD</span>' : '') + '</span>' +
+          '<span class="supplement-row__meta">' + s.class + ' · ' + d + ' · ' + s.route + '</span>' +
+          '</div>' +
+          '<span class="supplement-row__idx">' + String(i + 1).padStart(2, '0') + '</span>' +
+          '</div>';
+      }).join('')}
+    </div>
+    <div class="section">
+      <div class="section-head">
+        <span class="section-head__no">&sect;02</span>
+        <span class="section-head__title">Annotation</span>
+        <span class="section-head__right">optional</span>
+      </div>
+      <div class="annotation-wrap">
+        <textarea class="annotation" id="f-sup-note" maxlength="500" placeholder="Notes&hellip;"></textarea>
+        <div class="annotation-meta"><span id="f-sup-nc">0 / 500 char</span></div>
+      </div>
+    </div>`;
+  document.getElementById('f-sup-note').addEventListener('input', function() {
+    document.getElementById('f-sup-nc').textContent = this.value.length + ' / 500 char';
+  });
+  currentSubmit = submitSupplement;
+}
+
+function toggleSup(i) {
+  var chk     = document.getElementById('sup-chk-' + i);
+  var row     = document.getElementById('sup-row-' + i);
+  var checked = chk.getAttribute('aria-checked') === 'true';
+  chk.setAttribute('aria-checked', String(!checked));
+  chk.textContent = !checked ? '✓' : '';
+  row.classList.toggle('supplement-row--checked', !checked);
+  var count = document.querySelectorAll('.supplement-check[aria-checked="true"]').length;
+  var el    = document.getElementById('sup-count');
+  if (el) el.textContent = count;
+}
+
+function selectTab(el, groupId) {
+  document.querySelectorAll('#' + groupId + ' .tab-chip').forEach(function(t) { t.setAttribute('aria-selected', 'false'); });
+  el.setAttribute('aria-selected', 'true');
+  var wrap = document.getElementById('custom-time-wrap');
+  if (wrap) wrap.style.display = el.dataset.time === 'Custom' ? '' : 'none';
+}
+
+async function submitSupplement() {
+  var taken = [], skipped = [];
+  SUPS.forEach(function(s, i) {
+    var chk = document.getElementById('sup-chk-' + i);
+    if (chk && chk.getAttribute('aria-checked') === 'true') {
+      taken.push({ supplement_id: i + 1, name: s.name, dose: s.dose });
+    } else {
+      skipped.push({ supplement_id: i + 1, name: s.name, reason: s.hold ? 'hold' : 'not taken' });
+    }
+  });
+  if (!taken.length) { showErr('Select at least one supplement'); return; }
+  var activeTabEl = document.querySelector('#time-tabs [aria-selected="true"]');
+  var activeTab   = activeTabEl ? activeTabEl.dataset.time : 'Now';
+  var takenAt = new Date().toISOString();
+  if (activeTab !== 'Now' && activeTab !== 'Custom') {
+    var parts = activeTab.split(':').map(Number);
+    var d = new Date(); d.setHours(parts[0], parts[1], 0, 0); takenAt = d.toISOString();
+  } else if (activeTab === 'Custom') {
+    var cv = document.getElementById('f-sup-custom');
+    if (cv && cv.value) takenAt = new Date(cv.value).toISOString();
+  }
+  var noteEl = document.getElementById('f-sup-note');
+  var note   = noteEl ? noteEl.value.trim() || null : null;
+  saveDoses(taken.map(function(t) { return { name: t.name, dose: t.dose }; }));
+  var metadata = {
+    taken:       taken.map(function(t) { return { name: t.name, dose: t.dose }; }),
+    taken_full:  taken, skipped: skipped,
+    preset_time: activeTab.toLowerCase(), count: taken.length, of: SUPS.length,
+  };
+  await writeEntry('supplement', takenAt, takenAt, note, metadata);
+}
+
+// ── SAUNA FORM ─────────────────────────────────────────────────────────────
+function buildSaunaForm(meta) {
+  var app  = document.getElementById('app');
+  var nowV = toLocalDatetimeInput(new Date());
+  app.innerHTML =
+    formHeader(meta, '03', 'Sauna session') +
+    '<div class="section">' +
+    '<div class="section-head"><span class="section-head__no">&sect;01</span><span class="section-head__title">Heat type</span></div>' +
+    '<div class="chips" id="heat-chips">' +
+    ['Dry','Steam','Infrared'].map(function(t,i){ return '<button class="chip" aria-pressed="' + (i===0) + '" onclick="selectChip(this,\'heat-chips\')">' + t + '</button>'; }).join('') +
+    '</div></div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;02</span><span class="section-head__title">Session parameters</span></div>' +
+    '<div class="field-grid">' +
+    '<label class="cell"><span class="cell__label">TEMPERATURE &deg;F</span><input class="cell__value cell__value--mono" id="f-sau-temp" type="number" min="100" max="230" step="5" value="185"><span class="cell__hint">100&ndash;230 &deg;F</span></label>' +
+    '<label class="cell"><span class="cell__label">DURATION MIN</span><input class="cell__value cell__value--mono" id="f-sau-dur" type="number" min="1" max="90" step="1" value="20"><span class="cell__hint">1&ndash;90 min</span></label>' +
+    '<label class="cell"><span class="cell__label">STARTED AT</span><input class="cell__value cell__value--mono" id="f-sau-start" type="datetime-local" value="' + nowV + '"><span class="cell__hint">default: now</span></label>' +
+    '<label class="cell"><span class="cell__label">LOCATION</span><input class="cell__value" id="f-sau-loc" type="text" placeholder="Home &middot; NYC"><span class="cell__hint">optional</span></label>' +
+    '</div></div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;03</span><span class="section-head__title">Annotation</span><span class="section-head__right">optional</span></div>' +
+    '<div class="annotation-wrap"><textarea class="annotation" id="f-sau-note" maxlength="500" placeholder="Notes&hellip;"></textarea>' +
+    '<div class="annotation-meta"><span id="f-sau-nc">0 / 500 char</span></div></div></div>';
+  document.getElementById('f-sau-note').addEventListener('input', function() {
+    document.getElementById('f-sau-nc').textContent = this.value.length + ' / 500 char';
+  });
+  currentSubmit = submitSauna;
+}
+
+async function submitSauna() {
+  var heatEl  = document.querySelector('#heat-chips [aria-pressed="true"]');
+  var heat    = heatEl ? heatEl.textContent : 'Dry';
+  var tempEl  = document.getElementById('f-sau-temp');
+  var durEl   = document.getElementById('f-sau-dur');
+  var startEl = document.getElementById('f-sau-start');
+  var locEl   = document.getElementById('f-sau-loc');
+  var noteEl  = document.getElementById('f-sau-note');
+  var temp    = tempEl  ? parseInt(tempEl.value)  : 0;
+  var dur     = durEl   ? parseInt(durEl.value)   : 0;
+  var startV  = startEl ? startEl.value : '';
+  var loc     = locEl   ? locEl.value.trim() || null : null;
+  var note    = noteEl  ? noteEl.value.trim() || null : null;
+  if (!temp || temp < 100 || temp > 230) { showErr('Temperature must be 100–230 °F'); return; }
+  if (!dur  || dur  < 1   || dur  > 90)  { showErr('Duration must be 1–90 min'); return; }
+  var startedAt = startV ? new Date(startV).toISOString() : new Date().toISOString();
+  var endedAt   = new Date(new Date(startedAt).getTime() + dur * 60000).toISOString();
+  var metadata  = { type: heat, temp_f: temp, duration_min: dur, modality: 'sauna', modality_code: 'M-01', heat_type: heat.toLowerCase(), temperature_f: temp, location: loc };
+  await writeEntry('sauna', startedAt, endedAt, note, metadata);
+}
+
+// ── RED LIGHT FORM ─────────────────────────────────────────────────────────
+function buildRedLightForm(meta) {
+  var app  = document.getElementById('app');
+  var nowV = toLocalDatetimeInput(new Date());
+  app.innerHTML =
+    formHeader(meta, '04', 'Red light session') +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;01</span><span class="section-head__title">Wavelength</span></div>' +
+    '<div class="chips" id="wave-chips">' +
+    ['660 nm','850 nm','Both'].map(function(t,i){ return '<button class="chip" aria-pressed="' + (i===2) + '" onclick="selectChip(this,\'wave-chips\')">' + t + '</button>'; }).join('') +
+    '</div></div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;02</span><span class="section-head__title">Session parameters</span></div>' +
+    '<div class="chips" id="area-chips" style="margin-top:var(--s-9)">' +
+    ['Face','Torso','Full body'].map(function(t,i){ return '<button class="chip" aria-pressed="' + (i===2) + '" onclick="selectChip(this,\'area-chips\')">' + t + '</button>'; }).join('') +
+    '</div>' +
+    '<div class="field-grid">' +
+    '<label class="cell"><span class="cell__label">DURATION MIN</span><input class="cell__value cell__value--mono" id="f-rl-dur" type="number" min="1" max="60" step="1" value="20"><span class="cell__hint">1&ndash;60 min</span></label>' +
+    '<label class="cell"><span class="cell__label">DISTANCE CM</span><input class="cell__value cell__value--mono" id="f-rl-dist" type="number" min="5" max="120" step="5" value="30"><span class="cell__hint">5&ndash;120 cm</span></label>' +
+    '<label class="cell"><span class="cell__label">STARTED AT</span><input class="cell__value cell__value--mono" id="f-rl-start" type="datetime-local" value="' + nowV + '"><span class="cell__hint">default: now</span></label>' +
+    '</div></div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;03</span><span class="section-head__title">Annotation</span><span class="section-head__right">optional</span></div>' +
+    '<div class="annotation-wrap"><textarea class="annotation" id="f-rl-note" maxlength="500" placeholder="Notes&hellip;"></textarea>' +
+    '<div class="annotation-meta"><span id="f-rl-nc">0 / 500 char</span></div></div></div>';
+  document.getElementById('f-rl-note').addEventListener('input', function() {
+    document.getElementById('f-rl-nc').textContent = this.value.length + ' / 500 char';
+  });
+  currentSubmit = submitRedLight;
+}
+
+async function submitRedLight() {
+  var waveEl  = document.querySelector('#wave-chips [aria-pressed="true"]');
+  var areaEl  = document.querySelector('#area-chips [aria-pressed="true"]');
+  var durEl   = document.getElementById('f-rl-dur');
+  var distEl  = document.getElementById('f-rl-dist');
+  var startEl = document.getElementById('f-rl-start');
+  var noteEl  = document.getElementById('f-rl-note');
+  var wave    = waveEl  ? waveEl.textContent  : 'Both';
+  var area    = areaEl  ? areaEl.textContent  : 'Full body';
+  var dur     = durEl   ? parseInt(durEl.value)  : 0;
+  var dist    = distEl  ? parseInt(distEl.value) : 0;
+  var startV  = startEl ? startEl.value : '';
+  var note    = noteEl  ? noteEl.value.trim() || null : null;
+  if (!dur  || dur  < 1  || dur  > 60)  { showErr('Duration must be 1–60 min'); return; }
+  if (!dist || dist < 5  || dist > 120) { showErr('Distance must be 5–120 cm'); return; }
+  var startedAt = startV ? new Date(startV).toISOString() : new Date().toISOString();
+  var endedAt   = new Date(new Date(startedAt).getTime() + dur * 60000).toISOString();
+  var metadata  = { zone: area, duration_min: dur, modality: 'red_light', modality_code: 'M-02', wavelength: wave, area: area, distance_cm: dist };
+  await writeEntry('red_light', startedAt, endedAt, note, metadata);
+}
+
+// ── ALCOHOL FORM ───────────────────────────────────────────────────────────
+function buildAlcoholForm(meta) {
+  var app = document.getElementById('app');
+  app.innerHTML =
+    formHeader(meta, '05', 'Alcohol event') +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;01</span><span class="section-head__title">Drinks</span></div>' +
+    '<div class="num-row"><button class="num-btn" onclick="adj(\'f-alc-n\',-1,0)">&minus;</button><span class="num-val" id="f-alc-n">1</span><span class="num-unit">drinks</span><button class="num-btn" onclick="adj(\'f-alc-n\',1)">+</button></div></div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;02</span><span class="section-head__title">Type</span></div>' +
+    '<div class="chips" id="alc-chips">' +
+    ['Wine','Beer','Spirits','Other'].map(function(t,i){ return '<button class="chip" aria-pressed="' + (i===0) + '" onclick="selectChip(this,\'alc-chips\')">' + t + '</button>'; }).join('') +
+    '</div></div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;03</span><span class="section-head__title">Annotation</span></div>' +
+    '<div class="annotation-wrap"><textarea class="annotation" id="f-alc-note" maxlength="500" placeholder="Notes&hellip;"></textarea>' +
+    '<div class="annotation-meta"><span id="f-alc-nc">0 / 500 char</span></div></div></div>';
+  document.getElementById('f-alc-note').addEventListener('input', function() {
+    document.getElementById('f-alc-nc').textContent = this.value.length + ' / 500 char';
+  });
+  currentSubmit = submitAlcohol;
+}
+
+async function submitAlcohol() {
+  var drinksEl = document.getElementById('f-alc-n');
+  var typeEl   = document.querySelector('#alc-chips [aria-pressed="true"]');
+  var noteEl   = document.getElementById('f-alc-note');
+  var drinks   = drinksEl ? parseInt(drinksEl.textContent) || 1 : 1;
+  var type     = typeEl   ? typeEl.textContent : 'Wine';
+  var note     = noteEl   ? noteEl.value.trim() || null : null;
+  var now      = new Date().toISOString();
+  await writeEntry('alcohol', now, now, note, { drinks: drinks, type: type });
+}
+
+// ── MASSAGE FORM ───────────────────────────────────────────────────────────
+function buildMassageForm(meta) {
+  var app = document.getElementById('app');
+  app.innerHTML =
+    formHeader(meta, '06', 'Massage session') +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;01</span><span class="section-head__title">Duration</span></div>' +
+    '<div class="num-row"><button class="num-btn" onclick="adj(\'f-msg-dur\',-10,10)">&minus;</button><span class="num-val" id="f-msg-dur">60</span><span class="num-unit">min</span><button class="num-btn" onclick="adj(\'f-msg-dur\',10)">+</button></div></div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;02</span><span class="section-head__title">Type</span></div>' +
+    '<div class="chips" id="msg-chips">' +
+    ['Deep Tissue','Swedish','Sports','Other'].map(function(t,i){ return '<button class="chip" aria-pressed="' + (i===0) + '" onclick="selectChip(this,\'msg-chips\')" style="font-size:10px">' + t + '</button>'; }).join('') +
+    '</div></div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;03</span><span class="section-head__title">Annotation</span></div>' +
+    '<div class="annotation-wrap"><textarea class="annotation" id="f-msg-note" maxlength="500" placeholder="Notes&hellip;"></textarea>' +
+    '<div class="annotation-meta"><span id="f-msg-nc">0 / 500 char</span></div></div></div>';
+  document.getElementById('f-msg-note').addEventListener('input', function() {
+    document.getElementById('f-msg-nc').textContent = this.value.length + ' / 500 char';
+  });
+  currentSubmit = submitMassage;
+}
+
+async function submitMassage() {
+  var durEl  = document.getElementById('f-msg-dur');
+  var typeEl = document.querySelector('#msg-chips [aria-pressed="true"]');
+  var noteEl = document.getElementById('f-msg-note');
+  var dur    = durEl  ? parseInt(durEl.textContent) || 60 : 60;
+  var type   = typeEl ? typeEl.textContent : 'Deep Tissue';
+  var note   = noteEl ? noteEl.value.trim() || null : null;
+  var now    = new Date().toISOString();
+  var end    = new Date(Date.now() + dur * 60000).toISOString();
+  await writeEntry('massage', now, end, note, { duration_min: dur, type: type });
+}
+
+// ── FLIGHT FORM ────────────────────────────────────────────────────────────
+function buildFlightForm(meta) {
+  var app  = document.getElementById('app');
+  app.innerHTML =
+    formHeader(meta, '07', 'Overnight flight') +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;01</span><span class="section-head__title">Route</span></div>' +
+    '<div class="field-grid">' +
+    '<label class="cell"><span class="cell__label">FROM</span><input class="cell__value" id="f-fl-from" type="text" placeholder="JFK"></label>' +
+    '<label class="cell"><span class="cell__label">TO</span><input class="cell__value" id="f-fl-to" type="text" placeholder="LHR"></label>' +
+    '<label class="cell"><span class="cell__label">DEPARTURE TIME</span><input class="cell__value cell__value--mono" id="f-fl-dep" type="time"><span class="cell__hint">optional</span></label>' +
+    '</div></div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;02</span><span class="section-head__title">Annotation</span></div>' +
+    '<div class="annotation-wrap"><textarea class="annotation" id="f-fl-note" maxlength="500" placeholder="Notes&hellip;"></textarea>' +
+    '<div class="annotation-meta"><span id="f-fl-nc">0 / 500 char</span></div></div></div>';
+  document.getElementById('f-fl-note').addEventListener('input', function() {
+    document.getElementById('f-fl-nc').textContent = this.value.length + ' / 500 char';
+  });
+  currentSubmit = submitFlight;
+}
+
+async function submitFlight() {
+  var fromEl = document.getElementById('f-fl-from');
+  var toEl   = document.getElementById('f-fl-to');
+  var depEl  = document.getElementById('f-fl-dep');
+  var noteEl = document.getElementById('f-fl-note');
+  var from   = fromEl ? fromEl.value.trim() : '';
+  var to     = toEl   ? toEl.value.trim()   : '';
+  var dep    = depEl  ? depEl.value || null  : null;
+  var note   = noteEl ? noteEl.value.trim() || null : null;
+  if (!from || !to) { showErr('From and To are required'); return; }
+  var now = new Date().toISOString();
+  await writeEntry('flight', now, null, note, { from: from, to: to, departure_time: dep });
+}
+
+// ── TIMEZONE FORM ──────────────────────────────────────────────────────────
+function buildTimezoneForm(meta) {
+  var app = document.getElementById('app');
+  app.innerHTML =
+    formHeader(meta, '08', 'Timezone change') +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;01</span><span class="section-head__title">Zones</span></div>' +
+    '<div class="field-grid">' +
+    '<label class="cell"><span class="cell__label">FROM TZ</span><input class="cell__value" id="f-tz-from" type="text" placeholder="EST"></label>' +
+    '<label class="cell"><span class="cell__label">TO TZ</span><input class="cell__value" id="f-tz-to" type="text" placeholder="CET"></label>' +
+    '<label class="cell"><span class="cell__label">OFFSET HOURS</span><input class="cell__value cell__value--mono" id="f-tz-offset" type="number" placeholder="+6"><span class="cell__hint">optional</span></label>' +
+    '</div></div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;02</span><span class="section-head__title">Annotation</span></div>' +
+    '<div class="annotation-wrap"><textarea class="annotation" id="f-tz-note" maxlength="500" placeholder="Notes&hellip;"></textarea>' +
+    '<div class="annotation-meta"><span id="f-tz-nc">0 / 500 char</span></div></div></div>';
+  document.getElementById('f-tz-note').addEventListener('input', function() {
+    document.getElementById('f-tz-nc').textContent = this.value.length + ' / 500 char';
+  });
+  currentSubmit = submitTimezone;
+}
+
+async function submitTimezone() {
+  var fromEl   = document.getElementById('f-tz-from');
+  var toEl     = document.getElementById('f-tz-to');
+  var offsetEl = document.getElementById('f-tz-offset');
+  var noteEl   = document.getElementById('f-tz-note');
+  var fromTz   = fromEl   ? fromEl.value.trim()   : '';
+  var toTz     = toEl     ? toEl.value.trim()     : '';
+  var offset   = offsetEl ? offsetEl.value.trim() : '';
+  var note     = noteEl   ? noteEl.value.trim() || null : null;
+  if (!fromTz || !toTz) { showErr('From and To timezones required'); return; }
+  var now = new Date().toISOString();
+  await writeEntry('timezone', now, null, note, { from_tz: fromTz, to_tz: toTz, offset_hours: offset ? parseFloat(offset) : null });
+}
+
+// ── NOTE FORM ──────────────────────────────────────────────────────────────
+function buildNoteForm(meta) {
+  var app = document.getElementById('app');
+  app.innerHTML =
+    formHeader(meta, '09', 'Observation') +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;01</span><span class="section-head__title">Category</span></div>' +
+    '<div class="chips" id="note-chips">' +
+    ['General','Diet','Symptom','Recovery','Sleep'].map(function(t,i){ return '<button class="chip" aria-pressed="' + (i===0) + '" onclick="selectChip(this,\'note-chips\')" style="font-size:10px">' + t + '</button>'; }).join('') +
+    '</div></div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;02</span><span class="section-head__title">Note</span><span class="section-head__right" id="note-cc">0 / 500</span></div>' +
+    '<div class="annotation-wrap"><textarea class="annotation" id="f-note-text" maxlength="500" style="min-height:120px" placeholder="Symptoms, diet observations, metrics&hellip;"></textarea></div></div>';
+  document.getElementById('f-note-text').addEventListener('input', function() {
+    var el = document.getElementById('note-cc');
+    if (el) el.textContent = this.value.length + ' / 500';
+  });
+  currentSubmit = submitNote;
+}
+
+async function submitNote() {
+  var textEl = document.getElementById('f-note-text');
+  var catEl  = document.querySelector('#note-chips [aria-pressed="true"]');
+  var text   = textEl ? textEl.value.trim() : '';
+  var cat    = catEl  ? catEl.textContent : 'General';
+  if (!text) { showErr('Note text required'); return; }
+  var now = new Date().toISOString();
+  await writeEntry('note', now, null, text, { text: text, category: cat });
+}
+
+// ── CONFIRM SCREEN ─────────────────────────────────────────────────────────
+function renderConfirm() {
+  var e = confirmEntry;
+  if (!e) { navigate('#home'); return; }
+  var app  = document.getElementById('app');
+  var meta = EMETA[e.entry_type] || { code: '--', label: e.entry_type };
+  var m    = e.metadata || {};
+  var filed = new Date(e.started_at).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false });
+  var undoSec = 30;
+
+  app.innerHTML =
+    '<div class="med-header">' +
+    '<div class="med-header__top">' +
+    '<span class="rx-badge rx-badge--confirm">&#10003;</span>' +
+    '<span class="header-eyebrow">FILED &middot; ' + filed + '</span>' +
+    '<span class="header-sync"><span id="undo-txt" style="color:var(--state-warn)">UNDO ' + undoSec + 's</span></span>' +
+    '</div>' +
+    '<div class="header-sub">' + fmtHeaderDate(new Date()) + '</div>' +
+    '<div class="header-title">' + meta.label + '</div>' +
+    '</div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;01</span><span class="section-head__title">Record</span><span class="section-head__right">' + meta.code + '</span></div>' +
+    '<div class="confirm-row"><span class="confirm-row__key">entry type</span><span class="confirm-row__val">' + e.entry_type + '</span></div>' +
+    '<div class="confirm-row"><span class="confirm-row__key">started at</span><span class="confirm-row__val">' + new Date(e.started_at).toLocaleString() + '</span></div>' +
+    (e.ended_at ? '<div class="confirm-row"><span class="confirm-row__key">ended at</span><span class="confirm-row__val">' + new Date(e.ended_at).toLocaleString() + '</span></div>' : '') +
+    (e.notes ? '<div class="confirm-row"><span class="confirm-row__key">notes</span><span class="confirm-row__val">' + e.notes + '</span></div>' : '') +
+    '<div class="confirm-row"><span class="confirm-row__key">metadata</span><span class="confirm-row__val" style="font-size:11px;font-family:var(--font-mono)">' + JSON.stringify(m).substring(0, 140) + '&hellip;</span></div>' +
+    '</div>' +
+    '<div class="audit-footer">&middot; written to supabase &middot; journal_entries<br>&middot; subject 01 &middot; ' + new Date().toISOString().substring(0,10) + '<br><span class="ok">+</span> sync to health.db at 07:00 daily</div>';
+
+  var undoInterval = setInterval(function() {
+    undoSec--;
+    var txt = document.getElementById('undo-txt');
+    if (undoSec <= 0) {
+      clearInterval(undoInterval);
+      if (txt) txt.textContent = 'FILED';
+      showSafBackOnly();
+    } else {
+      if (txt) txt.textContent = 'UNDO ' + undoSec + 's';
+    }
+  }, 1000);
+
+  showSafUndo(e.id, undoInterval);
+}
+
+function showSafUndo(entryId, undoInterval) {
+  var saf = document.getElementById('saf');
+  if (!saf) return;
+  saf.style.display = '';
+  var filedTime = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false });
+  saf.innerHTML =
+    '<div class="saf-meta">' +
+    '<div class="saf-sig"><span class="saf-sig__label">Signed by</span><span class="saf-sig__name">Self &middot; subject 01</span></div>' +
+    '<div class="saf-time"><span class="saf-time__label">Filed</span><span class="saf-time__val">' + filedTime + '</span></div>' +
+    '</div>' +
+    '<button class="btn-primary" style="background:rgba(220,38,38,.8)" onclick="undoEntry(\'' + entryId + '\',' + undoInterval + ')">UNDO &middot; DELETE ENTRY</button>' +
+    '<button class="btn-secondary" onclick="navigate(\'#home\')">Back to Today</button>';
+}
+
+function showSafBackOnly() {
+  var saf = document.getElementById('saf');
+  if (!saf) return;
+  saf.style.display = '';
+  saf.innerHTML = '<button class="btn-secondary" onclick="navigate(\'#home\')">Back to Today</button>';
+}
+
+// ── CORE WRITE ─────────────────────────────────────────────────────────────
+async function writeEntry(type, startedAt, endedAt, notes, metadata) {
+  setBtnLoading(true); clearErr();
+  if (!db) { showErr('Supabase not configured'); setBtnLoading(false); return; }
+  var result = await db.from('journal_entries').insert({
+    entry_type: type, started_at: startedAt,
+    ended_at: endedAt || null, notes: notes || null, metadata: metadata,
+  }).select('*').single();
+  setBtnLoading(false);
+  if (result.error) { showErr(result.error.message || 'could not write entry — retry'); autoHideErr(6000); return; }
+  confirmEntry = result.data;
+  navigate('#confirm');
+}
+
+async function undoEntry(id, intervalId) {
+  clearInterval(intervalId);
+  if (db && id) await db.from('journal_entries').delete().eq('id', id);
+  confirmEntry = null;
+  navigate('#home');
+}
+
+// ── FASTING PERSISTENCE ────────────────────────────────────────────────────
+function getActiveFast()   { try { return JSON.parse(localStorage.getItem('jf')); } catch(e) { return null; } }
+function saveActiveFast(o) { localStorage.setItem('jf', JSON.stringify(o)); }
+function clearActiveFast() { localStorage.removeItem('jf'); }
+
+async function endFast() {
+  var f = getActiveFast();
+  if (!f) return;
+  var endedAt = new Date().toISOString();
+  if (db && f.id) await db.from('journal_entries').update({ ended_at: endedAt }).eq('id', f.id);
+  clearActiveFast();
+  clearInterval(fastTick);
+  navigate('#home');
+}
+
+// ── SAF HELPERS ────────────────────────────────────────────────────────────
+function showSaf(btnLabel) {
+  var saf = document.getElementById('saf');
+  if (!saf) return;
+  saf.style.display = '';
+  var timeStr = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false });
+  saf.innerHTML =
+    '<div class="saf-meta">' +
+    '<div class="saf-sig"><span class="saf-sig__label">Signed by</span><span class="saf-sig__name">Self &middot; subject 01</span></div>' +
+    '<div class="saf-time"><span class="saf-time__label">At</span><span class="saf-time__val" id="saf-clock">' + timeStr + '</span></div>' +
+    '</div>' +
+    '<div class="err-band" id="err-band"></div>' +
+    '<button class="btn-primary" id="saf-btn" onclick="submitCurrent()">' + btnLabel + '</button>';
+  clearInterval(safClockTick);
+  safClockTick = setInterval(function() {
+    var el = document.getElementById('saf-clock');
+    if (el) {
+      el.textContent = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false });
+    } else {
+      clearInterval(safClockTick);
+    }
+  }, 1000);
+}
+
+function hideSaf() {
+  var saf = document.getElementById('saf');
+  if (saf) saf.style.display = 'none';
+  clearInterval(safClockTick);
+}
+
+function submitCurrent() { if (typeof currentSubmit === 'function') currentSubmit(); }
+
+function setBtnLoading(loading) {
+  var btn = document.getElementById('saf-btn');
+  if (!btn) return;
+  if (loading) {
+    btn.disabled = true;
+    btn.innerHTML = 'FILING&hellip; <svg class="spinner" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/><path d="M7 2 a5 5 0 0 1 5 5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = currentType === 'fast' ? 'START FAST · SIGN &amp; FILE' : 'LOG IT · SIGN &amp; FILE';
+  }
+}
+
+function showErr(msg) {
+  var el = document.getElementById('err-band');
+  if (el) { el.textContent = '⨯ ERR · ' + msg; el.classList.add('show'); el.style.display = 'block'; }
+}
+function clearErr() {
+  var el = document.getElementById('err-band');
+  if (el) { el.textContent = ''; el.classList.remove('show'); el.style.display = 'none'; }
+}
+function autoHideErr(ms) { setTimeout(clearErr, ms); }
+
+// ── FORM HELPERS ───────────────────────────────────────────────────────────
+function formHeader(meta, formNo, title, bigNum) {
+  return '<div class="med-header">' +
+    '<div class="med-header__top">' +
+    '<span class="rx-badge">&#8478;</span>' +
+    '<span class="header-eyebrow">HEALTH.DB &middot; ' + meta.code + ' &middot; FORM ' + formNo + '</span>' +
+    '<button class="header-breadcrumb" onclick="navigate(\'#home\')">&lsaquo; Today</button>' +
+    '</div>' +
+    '<div class="header-sub">' + fmtHeaderDate(new Date()) + '</div>' +
+    '<div class="header-title">' + title + '</div>' +
+    (bigNum ? '<div class="header-meta-strip"><div class="header-meta-item"><span class="header-meta-label">' + meta.label.toUpperCase() + '</span><span class="header-meta-val">' + bigNum + '</span></div></div>' : '') +
+    '</div>';
+}
+
+function selectOption(el, groupId) {
+  document.querySelectorAll('#' + groupId + ' .option-row').forEach(function(r) {
+    r.setAttribute('aria-selected', 'false');
+    r.querySelector('.radio-circle').textContent = '';
+  });
+  el.setAttribute('aria-selected', 'true');
+  el.querySelector('.radio-circle').textContent = '●';
+}
+
+function selectChip(el, groupId) {
+  document.querySelectorAll('#' + groupId + ' .chip').forEach(function(c) { c.setAttribute('aria-pressed', 'false'); });
+  el.setAttribute('aria-pressed', 'true');
+}
+
+function adj(id, delta, min) {
+  if (min === undefined) min = 0;
+  var el = document.getElementById(id);
+  if (el) el.textContent = Math.max(min, (parseInt(el.textContent) || 0) + delta);
+}
+
+// ── DOSE STORAGE ───────────────────────────────────────────────────────────
+function getStoredDoses() {
+  try { return JSON.parse(localStorage.getItem('sup_doses') || '{}'); } catch(e) { return {}; }
+}
+function saveDoses(taken) {
+  var stored = getStoredDoses();
+  taken.forEach(function(item) { if (item.dose) stored[item.name] = item.dose; });
+  localStorage.setItem('sup_doses', JSON.stringify(stored));
+}
+
+// ── KEYBOARD ───────────────────────────────────────────────────────────────
+document.addEventListener('keydown', function(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); submitCurrent(); }
+  if (e.key === 'Escape' && location.hash !== '#home') navigate('#home');
+});
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+function fmtHeaderDate(d) {
+  return d.toLocaleDateString('en-US', { year:'numeric', month:'2-digit', day:'2-digit' }) +
+    ' · ' + d.toLocaleDateString('en-US', { weekday:'long' });
+}
+function fmtDur(ms) {
+  var h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000), s = Math.floor((ms % 60000) / 1000);
+  return pad(h) + ':' + pad(m) + ':' + pad(s);
+}
+function pad(n) { return String(n).padStart(2, '0'); }
+function ago(d) {
+  var diff = Date.now() - d;
+  if (diff < 60000)    return 'just now';
+  if (diff < 3600000)  return Math.floor(diff / 60000) + 'm ago';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+  return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+}
+function toLocalDatetimeInput(d) {
+  var p = function(n) { return String(n).padStart(2, '0'); };
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+// ── SERVICE WORKER ─────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  navigator.serviceWorker.register('sw.js').catch(function() {});
 }
 </script>
 </body>

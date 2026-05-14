@@ -5,8 +5,8 @@
   "start_url": "/Health-Journal/",
   "scope": "/Health-Journal/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#0d1b2a",
+  "theme_color": "#0d1b2a",
   "orientation": "portrait",
   "icons": [
     {
