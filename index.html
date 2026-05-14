@@ -465,6 +465,40 @@
         transition-duration: 0ms !important; animation-duration: 0ms !important;
       }
     }
+
+    /* ── DOSE QTY INPUT ─────────────────────────────────────────────── */
+    .dose-qty-input {
+      display: inline; width: 46px;
+      border: none; border-bottom: 1px dotted var(--paper-line);
+      background: transparent; font: 400 11px/1.3 var(--font-mono);
+      color: var(--ink); outline: none; text-align: right; padding: 0 2px;
+    }
+    .dose-qty-input:focus { border-bottom-color: var(--accent); }
+
+    /* ── REVIEW ENTRY ───────────────────────────────────────────────── */
+    .review-entry {
+      border-bottom: var(--rule-solid); background: var(--paper);
+      cursor: pointer; transition: background 120ms;
+    }
+    .review-entry:last-child { border-bottom: none; }
+    .review-entry:hover { background: var(--paper-2); }
+    .review-entry__head {
+      display: grid; grid-template-columns: 44px 1fr auto;
+      align-items: center; padding: var(--s-7) var(--s-9);
+    }
+    .review-entry__code { font: 400 11px/1 var(--font-mono); color: var(--ink-dim); }
+    .review-entry__label { font: 400 16px/1.35 var(--font-serif); color: var(--ink); }
+    .review-entry__time { font: 400 11px/1 var(--font-mono); color: var(--ink-dim); }
+    .review-entry__detail {
+      display: none; padding: 0 var(--s-9) var(--s-7);
+      font: 400 11px/1.6 var(--font-mono); color: var(--ink-dim);
+      border-top: var(--rule-dashed);
+    }
+    .review-entry__detail.open { display: block; }
+    .review-entry__detail-row { display: grid; grid-template-columns: 100px 1fr; padding: 3px 0; }
+    .review-entry__detail-key { color: var(--ink-muted); }
+    .review-entry__detail-val { color: var(--ink); word-break: break-word; }
+
   </style>
 </head>
 <body>
@@ -482,7 +516,7 @@ const SB_KEY = 'sb_publishable_GxibaKni7-in3KQLCz1EgQ_VRIli3Qg';
 
 // ── SUPPLEMENTS ────────────────────────────────────────────────────────────
 const SUPS = [
-  { name:'Tirzepatide',           dose:'2.0mg',     class:'GLP-1/GIP',  route:'inj', hold:true  },
+  { name:'Tirzepatide',           dose:'2.0mg',     class:'GLP-1/GIP',  route:'inj', hold:false },
   { name:'Repatha',               dose:'23.5mg',    class:'PCSK9 mAb',  route:'inj', hold:false },
   { name:'Vitamin D3',            dose:'10,000 IU', class:'vitamin',    route:'po',  hold:false },
   { name:'Nicotinamide Riboside', dose:'1g',        class:'NAD+ prec.', route:'po',  hold:false },
@@ -506,14 +540,7 @@ const EMETA = {
   note:       { code:'NT', label:'Note',             sub:'free-text observation' },
 };
 
-// ── FAST PROTOCOLS ─────────────────────────────────────────────────────────
-const PROTOCOLS = [
-  { code:'P-01', label:'16:8', sub:'16 h fast · 8 h eat',    window_hours:16, eat_hours:8 },
-  { code:'P-02', label:'18:6', sub:'18 h fast · 6 h eat',    window_hours:18, eat_hours:6 },
-  { code:'P-03', label:'20:4', sub:'20 h fast · 4 h eat',    window_hours:20, eat_hours:4 },
-  { code:'P-04', label:'40hr', sub:'extended fast · 2 days', window_hours:40, eat_hours:0 },
-  { code:'P-05', label:'OMAD', sub:'one meal a day',          window_hours:23, eat_hours:1 },
-];
+
 
 // ── STATE ──────────────────────────────────────────────────────────────────
 let db           = null;
@@ -550,6 +577,9 @@ function render() {
   } else if (hash.startsWith('#log/')) {
     scroll.classList.remove('scroll--nofooter');
     renderForm(hash.replace('#log/', ''));
+  } else if (hash === '#review') {
+    scroll.classList.remove('scroll--nofooter');
+    renderLogReview();
   } else {
     scroll.classList.add('scroll--nofooter');
     renderHome();
@@ -611,6 +641,23 @@ function renderHome() {
           </span>
           <span class="entry-class__chev">&rarr;</span>
         </button>`).join('')}
+    </div>
+
+
+    <div class="section">
+      <div class="section-head">
+        <span class="section-head__no">&sect;03</span>
+        <span class="section-head__title">Log Review</span>
+        <span class="section-head__right">recent entries</span>
+      </div>
+      <button class="entry-class" onclick="navigate('#review')">
+        <span class="entry-class__code">LR</span>
+        <span class="entry-class__body">
+          <span class="entry-class__name">Review Logs</span>
+          <span class="entry-class__sub">last 10 entries &middot; tap to expand</span>
+        </span>
+        <span class="entry-class__chev">&rarr;</span>
+      </button>
     </div>
 
     <div class="audit-footer">
@@ -701,190 +748,236 @@ function renderForm(type) {
     case 'note':       buildNoteForm(meta);       break;
     default: navigate('#home');
   }
-  showSaf(type === 'fast' ? 'START FAST · SIGN &amp; FILE' : 'LOG IT · SIGN &amp; FILE');
+  showSaf(type === 'fast' ? (getActiveFast() ? 'END FAST' : 'START FAST') : 'LOG IT');
 }
 
 // ── FAST FORM ──────────────────────────────────────────────────────────────
 function buildFastForm(meta) {
-  const app  = document.getElementById('app');
-  const nowV = toLocalDatetimeInput(new Date());
-  app.innerHTML = `
-    ${formHeader(meta, '01', 'Start fast')}
-    <div class="section">
-      <div class="section-head">
-        <span class="section-head__no">&sect;01</span>
-        <span class="section-head__title">Protocol</span>
-        <span class="section-head__right">single-select</span>
-      </div>
-      <div role="radiogroup" id="protocol-group">
-        ${PROTOCOLS.map((p, i) => `
-          <div class="option-row" role="radio" aria-selected="${i === 0}"
-               tabindex="${i === 0 ? 0 : -1}" onclick="selectOption(this,'protocol-group')"
-               data-code="${p.code}" data-window="${p.window_hours}" data-eat="${p.eat_hours}">
-            <span class="radio-circle">${i === 0 ? '●' : ''}</span>
-            <div class="option-row__body">
-              <span class="option-row__name">${p.label}</span>
-              <span class="option-row__sub">${p.sub}</span>
-            </div>
-            <span class="option-row__code">${p.code}</span>
-          </div>`).join('')}
-      </div>
-    </div>
-    <div class="section">
-      <div class="section-head">
-        <span class="section-head__no">&sect;02</span>
-        <span class="section-head__title">Window</span>
-      </div>
-      <div class="field-grid">
-        <label class="cell">
-          <span class="cell__label">STARTED AT</span>
-          <input class="cell__value cell__value--mono" id="f-fast-start" type="datetime-local" value="${nowV}">
-          <span class="cell__hint">default: now</span>
-        </label>
-        <label class="cell">
-          <span class="cell__label">LAST MEAL AT</span>
-          <input class="cell__value cell__value--mono" id="f-fast-lastmeal" type="datetime-local">
-          <span class="cell__hint">optional</span>
-        </label>
-        <label class="cell">
-          <span class="cell__label">EXPECTED CLOSE</span>
-          <input class="cell__value cell__value--mono" id="f-fast-close" type="datetime-local" disabled>
-          <span class="cell__hint">auto-derived</span>
-        </label>
-        <label class="cell">
-          <span class="cell__label">ELAPSED</span>
-          <input class="cell__value cell__value--mono" id="f-fast-elapsed" disabled value="&#8212;">
-          <span class="cell__hint">live</span>
-        </label>
-      </div>
-      <div class="progress-wrap">
-        <div class="progress"><div class="progress__fill" id="fast-prog" style="--progress:0%"></div></div>
-        <div class="progress__label" id="fast-prog-label">0%</div>
-      </div>
-    </div>
-    <div class="section">
-      <div class="section-head">
-        <span class="section-head__no">&sect;03</span>
-        <span class="section-head__title">Annotation</span>
-        <span class="section-head__right">optional</span>
-      </div>
-      <div class="annotation-wrap">
-        <textarea class="annotation" id="f-fast-note" maxlength="500" placeholder="Notes&hellip;"></textarea>
-        <div class="annotation-meta"><span id="f-fast-nc">0 / 500 char</span></div>
-      </div>
-    </div>`;
-  document.getElementById('f-fast-start').addEventListener('change', updateFastDerived);
-  document.querySelectorAll('#protocol-group .option-row').forEach(r => r.addEventListener('click', updateFastDerived));
+  clearInterval(fastTick);
+  var app = document.getElementById('app');
+  var nowV = toLocalDatetimeInput(new Date());
+  var activeFast = getActiveFast();
+  if (activeFast) {
+    var startedLocal = toLocalDatetimeInput(new Date(activeFast.startedAt));
+    var elapsed = fmtDur(Date.now() - new Date(activeFast.startedAt).getTime());
+    app.innerHTML =
+      formHeader(meta, '01', 'End fast') +
+      '<div class="section">' +
+        '<div class="section-head"><span class="section-head__no">&sect;01</span>' +
+        '<span class="section-head__title">Active fast</span></div>' +
+        '<div class="field-grid">' +
+          '<label class="cell"><span class="cell__label">STARTED AT</span>' +
+          '<input class="cell__value cell__value--mono" disabled value="' + startedLocal + '"></label>' +
+          '<label class="cell"><span class="cell__label">ELAPSED</span>' +
+          '<input class="cell__value cell__value--mono" id="f-fast-elapsed" disabled value="' + elapsed + '"></label>' +
+        '</div>' +
+      '</div>' +
+      '<div class="section">' +
+        '<div class="section-head"><span class="section-head__no">&sect;02</span>' +
+        '<span class="section-head__title">Set end time</span></div>' +
+        '<div class="field-grid field-grid--1">' +
+          '<label class="cell"><span class="cell__label">ENDED AT</span>' +
+          '<input class="cell__value cell__value--mono" id="f-fast-end" type="datetime-local" value="' + nowV + '">' +
+          '<span class="cell__hint">default: now</span></label>' +
+        '</div>' +
+      '</div>' +
+      '<div class="section">' +
+        '<div class="section-head"><span class="section-head__no">&sect;03</span>' +
+        '<span class="section-head__title">Annotation</span>' +
+        '<span class="section-head__right">optional</span></div>' +
+        '<div class="annotation-wrap">' +
+          '<textarea class="annotation" id="f-fast-note" maxlength="500" placeholder="Notes&hellip;"></textarea>' +
+          '<div class="annotation-meta"><span id="f-fast-nc">0 / 500 char</span></div>' +
+        '</div>' +
+      '</div>';
+    fastTick = setInterval(function() {
+      var el = document.getElementById('f-fast-elapsed');
+      if (!el) { clearInterval(fastTick); return; }
+      el.value = fmtDur(Date.now() - new Date(activeFast.startedAt).getTime());
+    }, 1000);
+  } else {
+    app.innerHTML =
+      formHeader(meta, '01', 'Start fast') +
+      '<div class="section">' +
+        '<div class="section-head"><span class="section-head__no">&sect;01</span>' +
+        '<span class="section-head__title">Start time</span></div>' +
+        '<div class="field-grid field-grid--1">' +
+          '<label class="cell"><span class="cell__label">STARTED AT</span>' +
+          '<input class="cell__value cell__value--mono" id="f-fast-start" type="datetime-local" value="' + nowV + '">' +
+          '<span class="cell__hint">default: now</span></label>' +
+        '</div>' +
+      '</div>' +
+      '<div class="section">' +
+        '<div class="section-head"><span class="section-head__no">&sect;02</span>' +
+        '<span class="section-head__title">Annotation</span>' +
+        '<span class="section-head__right">optional</span></div>' +
+        '<div class="annotation-wrap">' +
+          '<textarea class="annotation" id="f-fast-note" maxlength="500" placeholder="Notes&hellip;"></textarea>' +
+          '<div class="annotation-meta"><span id="f-fast-nc">0 / 500 char</span></div>' +
+        '</div>' +
+      '</div>';
+  }
   document.getElementById('f-fast-note').addEventListener('input', function() {
     document.getElementById('f-fast-nc').textContent = this.value.length + ' / 500 char';
   });
-  updateFastDerived();
   currentSubmit = submitFast;
 }
 
-function updateFastDerived() {
-  const sel     = document.querySelector('#protocol-group [aria-selected="true"]');
-  const windowH = sel ? parseInt(sel.dataset.window) : 16;
-  const startV  = document.getElementById('f-fast-start') && document.getElementById('f-fast-start').value;
-  if (!startV) return;
-  const start   = new Date(startV);
-  const close   = new Date(start.getTime() + windowH * 3600000);
-  const closeEl = document.getElementById('f-fast-close');
-  if (closeEl) closeEl.value = toLocalDatetimeInput(close);
-  const elapsed = Date.now() - start.getTime();
-  if (elapsed > 0) {
-    const elEl = document.getElementById('f-fast-elapsed');
-    if (elEl) elEl.value = fmtDur(elapsed);
-    const pct = Math.min(Math.round((elapsed / (windowH * 3600000)) * 100), 100);
-    const pf  = document.getElementById('fast-prog');
-    const pl  = document.getElementById('fast-prog-label');
-    if (pf) pf.style.setProperty('--progress', pct + '%');
-    if (pl) pl.textContent = pct + '%';
+async function submitFast() {
+  var noteEl = document.getElementById('f-fast-note');
+  var note = noteEl ? noteEl.value.trim() || null : null;
+  var activeFast = getActiveFast();
+  if (activeFast) {
+    var endEl = document.getElementById('f-fast-end');
+    var endedAt = (endEl && endEl.value) ? new Date(endEl.value).toISOString() : new Date().toISOString();
+    setBtnLoading(true); clearErr();
+    if (!db) { showErr('Supabase not configured'); setBtnLoading(false); return; }
+    var result = await db.from('journal_entries')
+      .update({ ended_at: endedAt, notes: note }).eq('id', activeFast.id).select('*').single();
+    setBtnLoading(false);
+    if (result.error) { showErr(result.error.message || 'could not update entry'); autoHideErr(6000); return; }
+    clearActiveFast(); clearInterval(fastTick);
+    confirmEntry = result.data; navigate('#confirm');
+  } else {
+    var startEl = document.getElementById('f-fast-start');
+    if (!startEl || !startEl.value) { showErr('Start time required'); return; }
+    var startedAt = new Date(startEl.value).toISOString();
+    setBtnLoading(true); clearErr();
+    if (!db) { showErr('Supabase not configured'); setBtnLoading(false); return; }
+    var result = await db.from('journal_entries').insert({
+      entry_type: 'fast', started_at: startedAt, ended_at: null, notes: note,
+      metadata: { fast_type: 'manual' },
+    }).select('*').single();
+    setBtnLoading(false);
+    if (result.error) { showErr(result.error.message || 'could not write entry'); autoHideErr(6000); return; }
+    saveActiveFast({ type: 'manual', startedAt: startedAt, id: result.data.id, window_hours: 18 });
+    confirmEntry = result.data; navigate('#confirm');
   }
 }
 
-async function submitFast() {
-  const sel = document.querySelector('#protocol-group [aria-selected="true"]');
-  if (!sel) { showErr('Select a protocol'); return; }
-  const protocol  = PROTOCOLS.find(function(p) { return p.code === sel.dataset.code; }) || PROTOCOLS[0];
-  const startV    = document.getElementById('f-fast-start') && document.getElementById('f-fast-start').value;
-  if (!startV) { showErr('Start time required'); return; }
-  const startedAt = new Date(startV).toISOString();
-  const lastMealEl = document.getElementById('f-fast-lastmeal');
-  const lastMealV  = lastMealEl ? lastMealEl.value : '';
-  const noteEl     = document.getElementById('f-fast-note');
-  const note       = noteEl ? noteEl.value.trim() || null : null;
-  const expectedClose = new Date(new Date(startV).getTime() + protocol.window_hours * 3600000).toISOString();
-  const metadata = {
-    fast_type: protocol.label, protocol_code: protocol.code,
-    protocol_label: protocol.label, window_hours: protocol.window_hours,
-    eat_hours: protocol.eat_hours,
-    last_meal_at: lastMealV ? new Date(lastMealV).toISOString() : null,
-    expected_close_at: expectedClose,
-  };
-  setBtnLoading(true); clearErr();
-  if (!db) { showErr('Supabase not configured'); setBtnLoading(false); return; }
-  const result = await db.from('journal_entries').insert({
-    entry_type: 'fast', started_at: startedAt, ended_at: null, notes: note, metadata: metadata,
-  }).select('*').single();
-  setBtnLoading(false);
-  if (result.error) { showErr(result.error.message || 'could not write entry'); autoHideErr(6000); return; }
-  saveActiveFast({ type: protocol.label, startedAt: startedAt, id: result.data.id, window_hours: protocol.window_hours });
-  confirmEntry = result.data;
-  navigate('#confirm');
+// ── SUPPLEMENT FORM ────────────────────────────────────────────────────────
+function parseDose(doseStr) {
+  var m = String(doseStr).match(/^([\d.,]+)\s*(.*)$/);
+  if (m) return { qty: m[1], unit: m[2].trim() };
+  return { qty: doseStr, unit: '' };
 }
 
-// ── SUPPLEMENT FORM ────────────────────────────────────────────────────────
+function getCustomSups() {
+  try { return JSON.parse(localStorage.getItem('custom_sups') || '[]'); } catch(e) { return []; }
+}
+
+function saveCustomSup(sup) {
+  var arr = getCustomSups();
+  arr.push(sup);
+  localStorage.setItem('custom_sups', JSON.stringify(arr));
+}
+
 function buildSupplementForm(meta) {
-  const app   = document.getElementById('app');
-  const doses = getStoredDoses();
-  app.innerHTML = `
-    ${formHeader(meta, '02', "Today's stack",
-      '<span id="sup-count">0</span> / ' + SUPS.length + ' selected')}
-    <div class="tab-strip" id="time-tabs">
-      ${['Now','07:00','12:00','18:00','Custom'].map(function(t, i) {
-        return '<button class="tab-chip" aria-selected="' + (i === 0) + '" onclick="selectTab(this,\'time-tabs\')" data-time="' + t + '">' + t + '</button>';
-      }).join('')}
-    </div>
-    <div id="custom-time-wrap" style="display:none" class="section-pad">
-      <label class="cell">
-        <span class="cell__label">TAKEN AT</span>
-        <input class="cell__value cell__value--mono" id="f-sup-custom" type="datetime-local" value="${toLocalDatetimeInput(new Date())}">
-      </label>
-    </div>
-    <div class="section">
-      <div class="section-head">
-        <span class="section-head__no">&sect;01</span>
-        <span class="section-head__title">Current stack &middot; check administered</span>
-        <span class="section-head__right">${SUPS.length} items</span>
-      </div>
-      ${SUPS.map(function(s, i) {
-        var d = doses[s.name] || s.dose;
-        return '<div class="supplement-row' + (s.hold ? ' supplement-row--hold' : '') + '" id="sup-row-' + i + '">' +
-          '<button class="supplement-check" role="checkbox" aria-checked="false" id="sup-chk-' + i + '" onclick="toggleSup(' + i + ')"></button>' +
-          '<div class="supplement-row__body">' +
-          '<span class="supplement-row__name">' + s.name + (s.hold ? '<span class="hold-tag">HOLD</span>' : '') + '</span>' +
-          '<span class="supplement-row__meta">' + s.class + ' · ' + d + ' · ' + s.route + '</span>' +
-          '</div>' +
-          '<span class="supplement-row__idx">' + String(i + 1).padStart(2, '0') + '</span>' +
-          '</div>';
-      }).join('')}
-    </div>
-    <div class="section">
-      <div class="section-head">
-        <span class="section-head__no">&sect;02</span>
-        <span class="section-head__title">Annotation</span>
-        <span class="section-head__right">optional</span>
-      </div>
-      <div class="annotation-wrap">
-        <textarea class="annotation" id="f-sup-note" maxlength="500" placeholder="Notes&hellip;"></textarea>
-        <div class="annotation-meta"><span id="f-sup-nc">0 / 500 char</span></div>
-      </div>
-    </div>`;
+  var app    = document.getElementById('app');
+  var doses  = getStoredDoses();
+  var allSups = SUPS.concat(getCustomSups());
+
+  var rowsHtml = allSups.map(function(s, i) {
+    var d  = doses[s.name] || s.dose;
+    var pd = parseDose(d);
+    return '<div class="supplement-row" id="sup-row-' + i + '">' +
+      '<button class="supplement-check" role="checkbox" aria-checked="false" id="sup-chk-' + i + '" onclick="toggleSup(' + i + ')"></button>' +
+      '<div class="supplement-row__body">' +
+        '<span class="supplement-row__name">' + s.name + '</span>' +
+        '<span class="supplement-row__meta">' + (s.class || '') + ' &middot; ' +
+          '<input class="dose-qty-input" id="dose-qty-' + i + '" value="' + pd.qty + '" type="text" ' +
+          'onclick="event.stopPropagation()" aria-label="dose quantity for ' + s.name + '">' +
+          (pd.unit ? '&nbsp;' + pd.unit : '') + ' &middot; ' + s.route +
+        '</span>' +
+      '</div>' +
+      '<span class="supplement-row__idx">' + String(i + 1).padStart(2, '0') + '</span>' +
+    '</div>';
+  }).join('');
+
+  app.innerHTML =
+    formHeader(meta, '02', "Today's stack",
+      '<span id="sup-count">0</span> / ' + allSups.length + ' selected') +
+    '<div class="tab-strip" id="time-tabs">' +
+    ['Now','07:00','12:00','18:00','Custom'].map(function(t, i) {
+      return '<button class="tab-chip" aria-selected="' + (i === 0) + '" ' +
+        'onclick="selectTab(this,'time-tabs')" data-time="' + t + '">' + t + '</button>';
+    }).join('') +
+    '</div>' +
+    '<div id="custom-time-wrap" style="display:none" class="section-pad">' +
+      '<label class="cell"><span class="cell__label">TAKEN AT</span>' +
+      '<input class="cell__value cell__value--mono" id="f-sup-custom" type="datetime-local" ' +
+      'value="' + toLocalDatetimeInput(new Date()) + '"></label>' +
+    '</div>' +
+    '<div class="section">' +
+      '<div class="section-head">' +
+        '<span class="section-head__no">&sect;01</span>' +
+        '<span class="section-head__title">Current stack &middot; check administered</span>' +
+        '<span class="section-head__right">' + allSups.length + ' items</span>' +
+      '</div>' +
+      rowsHtml +
+      '<div style="padding:var(--s-7) var(--s-9)">' +
+        '<button class="btn-secondary" style="border-color:var(--accent-bright);color:var(--accent-bright)" ' +
+        'onclick="toggleAddSupForm()">&plus; ADD SUPPLEMENT</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="section" id="add-sup-section" style="display:none">' +
+      '<div class="section-head">' +
+        '<span class="section-head__no">&plus;</span>' +
+        '<span class="section-head__title">New supplement</span>' +
+        '<button onclick="toggleAddSupForm()" style="margin-left:auto;background:none;border:none;' +
+        'cursor:pointer;color:var(--ink-dim);font-size:20px;line-height:1">&times;</button>' +
+      '</div>' +
+      '<div class="field-grid">' +
+        '<label class="cell" style="grid-column:1/-1"><span class="cell__label">NAME</span>' +
+        '<input class="cell__value" id="new-sup-name" type="text" placeholder="e.g. Berberine"></label>' +
+        '<label class="cell"><span class="cell__label">DOSE QTY</span>' +
+        '<input class="cell__value cell__value--mono" id="new-sup-qty" type="text" placeholder="500"></label>' +
+        '<label class="cell"><span class="cell__label">UNIT</span>' +
+        '<input class="cell__value cell__value--mono" id="new-sup-unit" type="text" placeholder="mg"></label>' +
+        '<label class="cell"><span class="cell__label">CLASS</span>' +
+        '<input class="cell__value" id="new-sup-class" type="text" placeholder="mineral"></label>' +
+        '<label class="cell"><span class="cell__label">ROUTE</span>' +
+        '<select class="cell__value cell__value--mono" id="new-sup-route">' +
+        '<option>po</option><option>inj</option><option>sc</option><option>sl</option>' +
+        '</select></label>' +
+      '</div>' +
+      '<div style="padding:0 var(--s-9) var(--s-9)">' +
+        '<button class="btn-primary" onclick="saveAndAddSup()">SAVE SUPPLEMENT</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="section">' +
+      '<div class="section-head">' +
+        '<span class="section-head__no">&sect;02</span>' +
+        '<span class="section-head__title">Annotation</span>' +
+        '<span class="section-head__right">optional</span>' +
+      '</div>' +
+      '<div class="annotation-wrap">' +
+        '<textarea class="annotation" id="f-sup-note" maxlength="500" placeholder="Notes&hellip;"></textarea>' +
+        '<div class="annotation-meta"><span id="f-sup-nc">0 / 500 char</span></div>' +
+      '</div>' +
+    '</div>';
+
   document.getElementById('f-sup-note').addEventListener('input', function() {
     document.getElementById('f-sup-nc').textContent = this.value.length + ' / 500 char';
   });
   currentSubmit = submitSupplement;
+}
+
+function toggleAddSupForm() {
+  var sec = document.getElementById('add-sup-section');
+  if (sec) sec.style.display = sec.style.display === 'none' ? '' : 'none';
+}
+
+function saveAndAddSup() {
+  var name  = (document.getElementById('new-sup-name')  || {}).value || '';
+  var qty   = (document.getElementById('new-sup-qty')   || {}).value || '';
+  var unit  = (document.getElementById('new-sup-unit')  || {}).value || '';
+  var cls   = (document.getElementById('new-sup-class') || {}).value || '';
+  var route = (document.getElementById('new-sup-route') || {}).value || 'po';
+  if (!name.trim()) { alert('Name is required'); return; }
+  saveCustomSup({ name: name.trim(), dose: qty.trim() + unit.trim(), class: cls.trim() || 'custom', route: route, hold: false });
+  buildSupplementForm(EMETA.supplement);
+  showSaf('LOG IT');
 }
 
 function toggleSup(i) {
@@ -892,7 +985,7 @@ function toggleSup(i) {
   var row     = document.getElementById('sup-row-' + i);
   var checked = chk.getAttribute('aria-checked') === 'true';
   chk.setAttribute('aria-checked', String(!checked));
-  chk.textContent = !checked ? '✓' : '';
+  chk.textContent = !checked ? '\u2713' : '';
   row.classList.toggle('supplement-row--checked', !checked);
   var count = document.querySelectorAll('.supplement-check[aria-checked="true"]').length;
   var el    = document.getElementById('sup-count');
@@ -907,11 +1000,16 @@ function selectTab(el, groupId) {
 }
 
 async function submitSupplement() {
+  var allSups = SUPS.concat(getCustomSups());
   var taken = [], skipped = [];
-  SUPS.forEach(function(s, i) {
+  allSups.forEach(function(s, i) {
     var chk = document.getElementById('sup-chk-' + i);
     if (chk && chk.getAttribute('aria-checked') === 'true') {
-      taken.push({ supplement_id: i + 1, name: s.name, dose: s.dose });
+      var doseQtyEl = document.getElementById('dose-qty-' + i);
+      var pd = parseDose(s.dose);
+      var qty = doseQtyEl ? doseQtyEl.value.trim() : pd.qty;
+      var finalDose = qty + (pd.unit ? pd.unit : '');
+      taken.push({ supplement_id: i + 1, name: s.name, dose: finalDose });
     } else {
       skipped.push({ supplement_id: i + 1, name: s.name, reason: s.hold ? 'hold' : 'not taken' });
     }
@@ -931,9 +1029,9 @@ async function submitSupplement() {
   var note   = noteEl ? noteEl.value.trim() || null : null;
   saveDoses(taken.map(function(t) { return { name: t.name, dose: t.dose }; }));
   var metadata = {
-    taken:       taken.map(function(t) { return { name: t.name, dose: t.dose }; }),
-    taken_full:  taken, skipped: skipped,
-    preset_time: activeTab.toLowerCase(), count: taken.length, of: SUPS.length,
+    taken:      taken.map(function(t) { return { name: t.name, dose: t.dose }; }),
+    taken_full: taken, skipped: skipped,
+    preset_time: activeTab.toLowerCase(), count: taken.length, of: allSups.length,
   };
   await writeEntry('supplement', takenAt, takenAt, note, metadata);
 }
@@ -1133,19 +1231,53 @@ async function submitFlight() {
 }
 
 // ── TIMEZONE FORM ──────────────────────────────────────────────────────────
+var TZ_OFFSETS = {
+  'UTC':0,'GMT':0,'EST':-5,'EDT':-4,'CST':-6,'CDT':-5,'MST':-7,'MDT':-6,
+  'PST':-8,'PDT':-7,'AKST':-9,'AKDT':-8,'HST':-10,'AST':-4,'NST':-3.5,
+  'BRT':-3,'ART':-3,'CLT':-3,'BOT':-4,'PYT':-4,'VET':-4,'COT':-5,'PET':-5,'ECT':-5,
+  'WET':0,'CET':1,'CEST':2,'EET':2,'EEST':3,'MSK':3,'TRT':3,
+  'IST':5.5,'PKT':5,'BST_BD':6,'ICT':7,'WIB':7,'CST_CN':8,'SGT':8,'HKT':8,
+  'JST':9,'KST':9,'AEST':10,'AEDT':11,'NZST':12,'NZDT':13,
+  'CAT':2,'EAT':3,'WAT':1,'SAST':2,
+};
+
+function calcTzOffset() {
+  var fromEl = document.getElementById('f-tz-from');
+  var toEl   = document.getElementById('f-tz-to');
+  var offEl  = document.getElementById('f-tz-offset');
+  if (!fromEl || !toEl || !offEl) return;
+  var fromKey = fromEl.value.trim().toUpperCase();
+  var toKey   = toEl.value.trim().toUpperCase();
+  if (TZ_OFFSETS[fromKey] !== undefined && TZ_OFFSETS[toKey] !== undefined) {
+    var diff = TZ_OFFSETS[toKey] - TZ_OFFSETS[fromKey];
+    offEl.value = (diff >= 0 ? '+' : '') + diff;
+    offEl.style.color = 'var(--accent-bright)';
+  }
+}
+
 function buildTimezoneForm(meta) {
   var app = document.getElementById('app');
   app.innerHTML =
     formHeader(meta, '08', 'Timezone change') +
-    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;01</span><span class="section-head__title">Zones</span></div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;01</span>' +
+    '<span class="section-head__title">Zones</span></div>' +
     '<div class="field-grid">' +
-    '<label class="cell"><span class="cell__label">FROM TZ</span><input class="cell__value" id="f-tz-from" type="text" placeholder="EST"></label>' +
-    '<label class="cell"><span class="cell__label">TO TZ</span><input class="cell__value" id="f-tz-to" type="text" placeholder="CET"></label>' +
-    '<label class="cell"><span class="cell__label">OFFSET HOURS</span><input class="cell__value cell__value--mono" id="f-tz-offset" type="number" placeholder="+6"><span class="cell__hint">optional</span></label>' +
+    '<label class="cell"><span class="cell__label">FROM TZ</span>' +
+    '<input class="cell__value" id="f-tz-from" type="text" placeholder="EST">' +
+    '<span class="cell__hint">e.g. EST, CET, JST</span></label>' +
+    '<label class="cell"><span class="cell__label">TO TZ</span>' +
+    '<input class="cell__value" id="f-tz-to" type="text" placeholder="CET">' +
+    '<span class="cell__hint">e.g. EST, CET, JST</span></label>' +
+    '<label class="cell"><span class="cell__label">OFFSET HOURS</span>' +
+    '<input class="cell__value cell__value--mono" id="f-tz-offset" type="text" placeholder="auto-calculated">' +
+    '<span class="cell__hint">auto-filled from TZ codes</span></label>' +
     '</div></div>' +
-    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;02</span><span class="section-head__title">Annotation</span></div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;02</span>' +
+    '<span class="section-head__title">Annotation</span></div>' +
     '<div class="annotation-wrap"><textarea class="annotation" id="f-tz-note" maxlength="500" placeholder="Notes&hellip;"></textarea>' +
     '<div class="annotation-meta"><span id="f-tz-nc">0 / 500 char</span></div></div></div>';
+  document.getElementById('f-tz-from').addEventListener('input', calcTzOffset);
+  document.getElementById('f-tz-to').addEventListener('input', calcTzOffset);
   document.getElementById('f-tz-note').addEventListener('input', function() {
     document.getElementById('f-tz-nc').textContent = this.value.length + ' / 500 char';
   });
@@ -1163,7 +1295,8 @@ async function submitTimezone() {
   var note     = noteEl   ? noteEl.value.trim() || null : null;
   if (!fromTz || !toTz) { showErr('From and To timezones required'); return; }
   var now = new Date().toISOString();
-  await writeEntry('timezone', now, null, note, { from_tz: fromTz, to_tz: toTz, offset_hours: offset ? parseFloat(offset) : null });
+  var offsetNum = offset ? parseFloat(offset) : null;
+  await writeEntry('timezone', now, null, note, { from_tz: fromTz, to_tz: toTz, offset_hours: offsetNum });
 }
 
 // ── NOTE FORM ──────────────────────────────────────────────────────────────
@@ -1335,7 +1468,7 @@ function setBtnLoading(loading) {
     btn.innerHTML = 'FILING&hellip; <svg class="spinner" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/><path d="M7 2 a5 5 0 0 1 5 5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
   } else {
     btn.disabled = false;
-    btn.innerHTML = currentType === 'fast' ? 'START FAST · SIGN &amp; FILE' : 'LOG IT · SIGN &amp; FILE';
+    btn.innerHTML = currentType === 'fast' ? (getActiveFast() ? 'END FAST' : 'START FAST') : 'LOG IT';
   }
 }
 
@@ -1419,6 +1552,64 @@ function ago(d) {
 function toLocalDatetimeInput(d) {
   var p = function(n) { return String(n).padStart(2, '0'); };
   return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+// ── LOG REVIEW ─────────────────────────────────────────────────────────────
+async function renderLogReview() {
+  var app = document.getElementById('app');
+  var reviewMeta = { code:'LR', label:'Log Review' };
+  app.innerHTML = formHeader(reviewMeta, '10', 'Recent Entries') +
+    '<div class="section"><div class="section-head">' +
+    '<span class="section-head__no">&sect;01</span>' +
+    '<span class="section-head__title">Last 10 entries</span>' +
+    '<span class="section-head__right" id="rv-count">loading&hellip;</span>' +
+    '</div>' +
+    '<div id="rv-list"><div class="empty-state">Loading&hellip;</div></div>' +
+    '</div>' +
+    '<div class="audit-footer">&middot; tap any row to expand details</div>';
+  if (!db) {
+    document.getElementById('rv-list').innerHTML = '<div class="empty-state">configure supabase</div>';
+    return;
+  }
+  var result = await db.from('journal_entries')
+    .select('*').order('started_at', { ascending: false }).limit(10);
+  var countEl = document.getElementById('rv-count');
+  if (result.error || !result.data || !result.data.length) {
+    document.getElementById('rv-list').innerHTML = '<div class="empty-state">no entries found</div>';
+    if (countEl) countEl.textContent = '0 entries';
+    return;
+  }
+  var data = result.data;
+  if (countEl) countEl.textContent = data.length + (data.length === 1 ? ' entry' : ' entries');
+  document.getElementById('rv-list').innerHTML = data.map(function(e, idx) {
+    var m       = EMETA[e.entry_type] || { code: e.entry_type.substring(0,2).toUpperCase(), label: e.entry_type };
+    var meta    = e.metadata || {};
+    var detail  = entryDetail(e.entry_type, meta, e.notes);
+    var timeStr = new Date(e.started_at).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false });
+    var metaJson = JSON.stringify(meta, null, 2);
+    var detailRows =
+      '<div class="review-entry__detail-row"><span class="review-entry__detail-key">type</span><span class="review-entry__detail-val">' + e.entry_type + '</span></div>' +
+      '<div class="review-entry__detail-row"><span class="review-entry__detail-key">started</span><span class="review-entry__detail-val">' + new Date(e.started_at).toLocaleString() + '</span></div>' +
+      (e.ended_at ? '<div class="review-entry__detail-row"><span class="review-entry__detail-key">ended</span><span class="review-entry__detail-val">' + new Date(e.ended_at).toLocaleString() + '</span></div>' : '') +
+      (e.notes ? '<div class="review-entry__detail-row"><span class="review-entry__detail-key">notes</span><span class="review-entry__detail-val">' + e.notes + '</span></div>' : '') +
+      '<div class="review-entry__detail-row"><span class="review-entry__detail-key">summary</span><span class="review-entry__detail-val">' + detail + '</span></div>' +
+      '<div class="review-entry__detail-row" style="align-items:start"><span class="review-entry__detail-key">metadata</span><span class="review-entry__detail-val" style="white-space:pre-wrap;font-size:10px">' + metaJson.substring(0, 300) + (metaJson.length > 300 ? '...' : '') + '</span></div>';
+    return '<div class="review-entry" onclick="toggleReviewDetail(' + idx + ')">' +
+      '<div class="review-entry__head">' +
+        '<span class="review-entry__code">' + m.code + '</span>' +
+        '<span class="review-entry__label">' + m.label + '</span>' +
+        '<span class="review-entry__time">' + timeStr + '</span>' +
+      '</div>' +
+      '<div class="review-entry__detail" id="rv-detail-' + idx + '">' + detailRows + '</div>' +
+    '</div>';
+  }).join('');
+  showSaf('&lsaquo; Back');
+  document.getElementById('saf-btn').onclick = function() { navigate('#home'); };
+}
+
+function toggleReviewDetail(idx) {
+  var el = document.getElementById('rv-detail-' + idx);
+  if (el) el.classList.toggle('open');
 }
 
 // ── SERVICE WORKER ─────────────────────────────────────────────────────────
