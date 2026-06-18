@@ -12,7 +12,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
     /* ── DESIGN TOKENS ──────────────────────────────────────────────── */
     :root {
@@ -511,8 +510,53 @@
 
 <script>
 // ── CONFIG ─────────────────────────────────────────────────────────────────
-const SB_URL = 'https://omrvqkefmlptsqpbmsxv.supabase.co';
-const SB_KEY = 'sb_publishable_GxibaKni7-in3KQLCz1EgQ_VRIli3Qg';
+const PB_URL = 'https://journal-api.fybertech.cloud';
+
+// ── POCKETBASE CLIENT (minimal REST wrapper, no SDK) ────────────────────────
+// Self-hosted replacement for the old supabase-js client. The collection's
+// API rules are public (no auth), matching the old anon-key trust model, so
+// no Authorization header is needed.
+const PB = {
+  async list(params) {
+    const qs = new URLSearchParams(params).toString();
+    try {
+      const res  = await fetch(`${PB_URL}/api/collections/journal_entries/records?${qs}`);
+      const json = await res.json();
+      if (!res.ok) return { data: null, error: json };
+      return { data: json.items, error: null };
+    } catch (e) { return { data: null, error: { message: String(e) } }; }
+  },
+  async insert(record) {
+    try {
+      const res = await fetch(`${PB_URL}/api/collections/journal_entries/records`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(record)
+      });
+      const json = await res.json();
+      if (!res.ok) return { data: null, error: json };
+      return { data: json, error: null };
+    } catch (e) { return { data: null, error: { message: String(e) } }; }
+  },
+  async update(id, record) {
+    try {
+      const res = await fetch(`${PB_URL}/api/collections/journal_entries/records/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(record)
+      });
+      const json = await res.json();
+      if (!res.ok) return { data: null, error: json };
+      return { data: json, error: null };
+    } catch (e) { return { data: null, error: { message: String(e) } }; }
+  },
+  async remove(id) {
+    try {
+      const res = await fetch(`${PB_URL}/api/collections/journal_entries/records/${id}`, { method: 'DELETE' });
+      if (!res.ok) { const json = await res.json().catch(() => ({})); return { error: json }; }
+      return { error: null };
+    } catch (e) { return { error: { message: String(e) } }; }
+  },
+};
+
+// PocketBase date-filter values need a space, not 'T', separating date/time.
+function pbDate(iso) { return iso.replace('T', ' '); }
 
 // ── SUPPLEMENTS ────────────────────────────────────────────────────────────
 const SUPS = [
@@ -552,8 +596,8 @@ let confirmEntry  = null;
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  if (SB_URL && !SB_URL.includes('YOUR_')) {
-    db = supabase.createClient(SB_URL, SB_KEY);
+  if (PB_URL && !PB_URL.includes('YOUR_')) {
+    db = true;
   }
   window.addEventListener('hashchange', render);
   if (!location.hash || location.hash === '#') location.hash = '#home';
@@ -651,7 +695,7 @@ function renderHome() {
     <div class="audit-footer">
       &middot; subject 01 &middot; health.db<br>
       &middot; journal v3 &middot; medical record ui<br>
-      <span class="ok">+</span> data writes to supabase in real-time
+      <span class="ok">+</span> data writes to pocketbase in real-time
     </div>`;
 
   if (activeFast) startFastBannerTimer(activeFast);
@@ -674,11 +718,12 @@ async function loadTodayEntries() {
   const el      = document.getElementById('today-entries');
   const countEl = document.getElementById('today-count');
   if (!el) return;
-  if (!db) { el.innerHTML = '<div class="empty-state">configure supabase</div>'; return; }
+  if (!db) { el.innerHTML = '<div class="empty-state">configure backend</div>'; return; }
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-  const { data, error } = await db.from('journal_entries')
-    .select('*').gte('started_at', todayStart.toISOString())
-    .order('started_at', { ascending: false });
+  const { data, error } = await PB.list({
+    filter: `started_at >= "${pbDate(todayStart.toISOString())}"`,
+    sort: '-started_at',
+  });
   if (error || !data || !data.length) {
     el.innerHTML = '<div class="empty-state">no entries logged today</div>';
     if (countEl) countEl.textContent = '0 entries';
@@ -818,9 +863,8 @@ async function submitFast() {
     var endEl = document.getElementById('f-fast-end');
     var endedAt = (endEl && endEl.value) ? new Date(endEl.value).toISOString() : new Date().toISOString();
     setBtnLoading(true); clearErr();
-    if (!db) { showErr('Supabase not configured'); setBtnLoading(false); return; }
-    var result = await db.from('journal_entries')
-      .update({ ended_at: endedAt, notes: note }).eq('id', activeFast.id).select('*').single();
+    if (!db) { showErr('Backend not configured'); setBtnLoading(false); return; }
+    var result = await PB.update(activeFast.id, { ended_at: endedAt, notes: note });
     setBtnLoading(false);
     if (result.error) { showErr(result.error.message || 'could not update entry'); autoHideErr(6000); return; }
     clearActiveFast(); clearInterval(fastTick);
@@ -830,11 +874,11 @@ async function submitFast() {
     if (!startEl || !startEl.value) { showErr('Start time required'); return; }
     var startedAt = new Date(startEl.value).toISOString();
     setBtnLoading(true); clearErr();
-    if (!db) { showErr('Supabase not configured'); setBtnLoading(false); return; }
-    var result = await db.from('journal_entries').insert({
+    if (!db) { showErr('Backend not configured'); setBtnLoading(false); return; }
+    var result = await PB.insert({
       entry_type: 'fast', started_at: startedAt, ended_at: null, notes: note,
       metadata: { fast_type: 'manual' },
-    }).select('*').single();
+    });
     setBtnLoading(false);
     if (result.error) { showErr(result.error.message || 'could not write entry'); autoHideErr(6000); return; }
     saveActiveFast({ type: 'manual', startedAt: startedAt, id: result.data.id, window_hours: 18 });
@@ -1341,7 +1385,7 @@ function renderConfirm() {
     (e.notes ? '<div class="confirm-row"><span class="confirm-row__key">notes</span><span class="confirm-row__val">' + e.notes + '</span></div>' : '') +
     '<div class="confirm-row"><span class="confirm-row__key">metadata</span><span class="confirm-row__val" style="font-size:11px;font-family:var(--font-mono)">' + JSON.stringify(m).substring(0, 140) + '&hellip;</span></div>' +
     '</div>' +
-    '<div class="audit-footer">&middot; written to supabase &middot; journal_entries<br>&middot; subject 01 &middot; ' + new Date().toISOString().substring(0,10) + '<br><span class="ok">+</span> sync to health.db at 07:00 daily</div>';
+    '<div class="audit-footer">&middot; written to pocketbase &middot; journal_entries<br>&middot; subject 01 &middot; ' + new Date().toISOString().substring(0,10) + '<br><span class="ok">+</span> sync to health.db at 07:00 daily</div>';
 
   var undoInterval = setInterval(function() {
     undoSec--;
@@ -1382,11 +1426,11 @@ function showSafBackOnly() {
 // ── CORE WRITE ─────────────────────────────────────────────────────────────
 async function writeEntry(type, startedAt, endedAt, notes, metadata) {
   setBtnLoading(true); clearErr();
-  if (!db) { showErr('Supabase not configured'); setBtnLoading(false); return; }
-  var result = await db.from('journal_entries').insert({
+  if (!db) { showErr('Backend not configured'); setBtnLoading(false); return; }
+  var result = await PB.insert({
     entry_type: type, started_at: startedAt,
     ended_at: endedAt || null, notes: notes || null, metadata: metadata,
-  }).select('*').single();
+  });
   setBtnLoading(false);
   if (result.error) { showErr(result.error.message || 'could not write entry — retry'); autoHideErr(6000); return; }
   confirmEntry = result.data;
@@ -1395,7 +1439,7 @@ async function writeEntry(type, startedAt, endedAt, notes, metadata) {
 
 async function undoEntry(id, intervalId) {
   clearInterval(intervalId);
-  if (db && id) await db.from('journal_entries').delete().eq('id', id);
+  if (db && id) await PB.remove(id);
   confirmEntry = null;
   navigate('#home');
 }
@@ -1409,7 +1453,7 @@ async function endFast() {
   var f = getActiveFast();
   if (!f) return;
   var endedAt = new Date().toISOString();
-  if (db && f.id) await db.from('journal_entries').update({ ended_at: endedAt }).eq('id', f.id);
+  if (db && f.id) await PB.update(f.id, { ended_at: endedAt });
   clearActiveFast();
   clearInterval(fastTick);
   navigate('#home');
@@ -1627,11 +1671,10 @@ async function renderLogReview() {
     '</div>' +
     '<div class="audit-footer">&middot; tap any row to expand details</div>';
   if (!db) {
-    document.getElementById('rv-list').innerHTML = '<div class="empty-state">configure supabase</div>';
+    document.getElementById('rv-list').innerHTML = '<div class="empty-state">configure backend</div>';
     return;
   }
-  var result = await db.from('journal_entries')
-    .select('*').order('started_at', { ascending: false }).limit(10);
+  var result = await PB.list({ sort: '-started_at', perPage: 10 });
   var countEl = document.getElementById('rv-count');
   if (result.error || !result.data || !result.data.length) {
     document.getElementById('rv-list').innerHTML = '<div class="empty-state">no entries found</div>';
