@@ -573,6 +573,7 @@ const SUPS = [
 
 // ── ENTRY META ─────────────────────────────────────────────────────────────
 const EMETA = {
+  heart_rate: { code:'HE', label:'Heart Rate',       sub:'cardio · BLE monitor'  },
   fast:       { code:'FA', label:'Fast',             sub:'fasting window log'    },
   supplement: { code:'SU', label:'Supplements',      sub:'daily stack admin.'    },
   red_light:  { code:'RL', label:'Red Light',        sub:'photobiomodulation'    },
@@ -584,6 +585,17 @@ const EMETA = {
   note:       { code:'NT', label:'Note',             sub:'free-text observation' },
 };
 
+// ── HEART RATE ZONES (Nov 2025 VO2 Max test: VT1 129 / VT2 158 / HRmax 175) ─
+// Do not change without ingesting new VO2 Max test results (next: Sep 2026).
+const HR_ZONES = [
+  { key: 'sub1', label: 'Sub-1 · Rest',      min: 0,   max: 99,  color: '#94a3b8' },
+  { key: 'z1',   label: 'Z1 · Recovery',     min: 100, max: 116, color: '#22c55e' },
+  { key: 'z2',   label: 'Z2 · Fat Burn',     min: 117, max: 129, color: '#84cc16' },
+  { key: 'z3',   label: 'Z3 · Aerobic',      min: 130, max: 150, color: '#f59e0b' },
+  { key: 'z4',   label: 'Z4 · Threshold',    min: 151, max: 158, color: '#f97316' },
+  { key: 'z5',   label: 'Z5 · VO2 Max',      min: 159, max: 999, color: '#dc2626' },
+];
+
 
 
 // ── STATE ──────────────────────────────────────────────────────────────────
@@ -593,6 +605,19 @@ let safClockTick = null;
 let currentSubmit = null;
 let currentType   = null;
 let confirmEntry  = null;
+
+// ── HEART RATE STATE ────────────────────────────────────────────────────────
+let hrDevice      = null;   // BLE BluetoothDevice reference
+let hrChar        = null;   // BLE characteristic reference
+let hrBuffer      = [];     // Rolling 5-reading buffer for smoothed display
+let hrSamples     = [];     // {t: activeSec, bpm} — downsampled to 1/5s for chart
+let hrRRBuffer    = [];     // Raw RR intervals (ms) for RMSSD calculation
+let hrStartTime   = null;   // Date.now() when Start Exercise was pressed
+let hrEndTime     = null;   // Date.now() when End Exercise was pressed (wall clock)
+let hrPausedAt    = null;   // Date.now() when BLE dropped mid-session (null = not paused)
+let hrPausedTotal = 0;      // Accumulated paused ms — excluded from duration & zones
+let hrSessionData = null;   // Computed results object, populated by hrEndExercise()
+let hrTimerTick   = null;   // setInterval reference for session timer display
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -608,6 +633,12 @@ window.addEventListener('DOMContentLoaded', () => {
 function navigate(hash) { location.hash = hash; }
 
 function render() {
+  // Disconnect BLE heart rate monitor if navigating away from HR form.
+  // NOTE: do NOT clear hrSamples/hrBuffer/hrRRBuffer/hrSessionData here —
+  // submitHeartRate() clears them after a successful write.
+  if (hrChar)   { hrChar.stopNotifications().catch(function(){}); hrChar = null; }
+  if (hrDevice) { try { hrDevice.gatt.disconnect(); } catch(e){} hrDevice = null; }
+  clearInterval(hrTimerTick);
   const hash = location.hash || '#home';
   const scroll = document.getElementById('scroll');
   hideSaf();
@@ -750,6 +781,10 @@ async function loadTodayEntries() {
 
 function entryDetail(type, meta, notes) {
   switch (type) {
+    case 'heart_rate':
+      return (meta.exercise_type || 'Cardio') + ' · ' +
+        Math.floor((meta.duration_sec || 0) / 60) + ' min · avg ' +
+        (meta.bpm_avg || '--') + ' bpm';
     case 'fast':       return (meta.fast_type || meta.protocol_label || '') + (notes ? ' · ' + notes.substring(0,30) : '');
     case 'supplement': return (meta.taken || []).length + ' supplements logged';
     case 'red_light':  return (meta.duration_min || '') + ' min' + (meta.zone || meta.area ? ' · ' + (meta.zone || meta.area) : '');
@@ -769,6 +804,7 @@ function renderForm(type) {
   const meta = EMETA[type];
   if (!meta) { navigate('#home'); return; }
   switch (type) {
+    case 'heart_rate': buildHeartRateForm(meta);  break;
     case 'fast':       buildFastForm(meta);       break;
     case 'supplement': buildSupplementForm(meta); break;
     case 'sauna':      buildSaunaForm(meta);      break;
@@ -780,6 +816,7 @@ function renderForm(type) {
     case 'note':       buildNoteForm(meta);       break;
     default: navigate('#home');
   }
+  if (type === 'heart_rate') { hideSaf(); return; }   // LOG IT shown only after session ends
   showSaf(type === 'fast' ? (getActiveFast() ? 'END FAST' : 'START FAST') : 'LOG IT');
 }
 
@@ -1358,6 +1395,446 @@ async function submitNote() {
   await writeEntry('note', now, null, text, { text: text, category: cat });
 }
 
+// ── HEART RATE FORM ────────────────────────────────────────────────────────
+function buildHeartRateForm(meta) {
+  var app = document.getElementById('app');
+  app.innerHTML =
+    formHeader(meta, 'HE', 'Cardio \xb7 Heart Rate') +
+
+    // §00 Live Monitor Display
+    '<div class="section" id="hr-monitor-section">' +
+      '<div class="section-head">' +
+        '<span class="section-head__no">&sect;00</span>' +
+        '<span class="section-head__title">Live Monitor</span>' +
+        '<span class="section-head__right" id="hr-ble-status" style="color:var(--state-err)">&#9679; NOT CONNECTED</span>' +
+      '</div>' +
+      '<div style="padding:var(--s-9) var(--s-9) var(--s-8);text-align:center;background:var(--navy-dark)">' +
+        '<div id="hr-live-bpm" style="font:400 72px/1 var(--font-mono);color:var(--state-err);letter-spacing:.08em">---</div>' +
+        '<div style="font:600 9px/1.2 var(--font-sans);letter-spacing:.18em;text-transform:uppercase;color:var(--on-navy-fg-dim);margin-top:var(--s-5)">BPM &middot; 5-SEC AVG</div>' +
+        '<div id="hr-timer" style="font:400 28px/1 var(--font-mono);color:var(--on-navy-fg);margin-top:var(--s-7)">00:00:00</div>' +
+      '</div>' +
+    '</div>' +
+
+    // §01 Device Connection
+    '<div class="section">' +
+      '<div class="section-head">' +
+        '<span class="section-head__no">&sect;01</span>' +
+        '<span class="section-head__title">Device</span>' +
+        '<span class="section-head__right">powrlabs chest hrm</span>' +
+      '</div>' +
+      '<div style="padding:var(--s-7) var(--s-9)">' +
+        '<button class="btn-primary" id="hr-connect-btn" onclick="hrConnect()" ' +
+        'style="background:var(--accent)">CONNECT MONITOR</button>' +
+      '</div>' +
+    '</div>' +
+
+    // §02 Exercise Type
+    '<div class="section">' +
+      '<div class="section-head">' +
+        '<span class="section-head__no">&sect;02</span>' +
+        '<span class="section-head__title">Exercise Type</span>' +
+      '</div>' +
+      '<div class="chips" id="hr-exercise-chips">' +
+        '<button class="chip" aria-pressed="true"  onclick="selectChip(this,\'hr-exercise-chips\')">Cardio</button>' +
+        '<button class="chip" aria-pressed="false" onclick="selectChip(this,\'hr-exercise-chips\')">Weightlifting</button>' +
+      '</div>' +
+    '</div>' +
+
+    // §03 Session Control
+    '<div class="section">' +
+      '<div class="section-head">' +
+        '<span class="section-head__no">&sect;03</span>' +
+        '<span class="section-head__title">Session</span>' +
+      '</div>' +
+      '<div style="padding:var(--s-7) var(--s-9);display:flex;flex-direction:column;gap:var(--s-5)">' +
+        '<button class="btn-primary" id="hr-start-btn" onclick="hrStartExercise()" ' +
+        'disabled style="opacity:.4">START EXERCISE</button>' +
+        '<button class="btn-secondary" id="hr-end-btn" onclick="hrEndExercise()" ' +
+        'style="display:none;border-color:var(--state-err);color:var(--state-err)">END EXERCISE</button>' +
+      '</div>' +
+    '</div>' +
+
+    // §04 Annotation
+    '<div class="section">' +
+      '<div class="section-head">' +
+        '<span class="section-head__no">&sect;04</span>' +
+        '<span class="section-head__title">Annotation</span>' +
+        '<span class="section-head__right">optional</span>' +
+      '</div>' +
+      '<div class="annotation-wrap">' +
+        '<textarea class="annotation" id="f-hr-note" maxlength="500" placeholder="Notes&hellip;"></textarea>' +
+        '<div class="annotation-meta"><span id="f-hr-nc">0 / 500 char</span></div>' +
+      '</div>' +
+    '</div>' +
+
+    // RPT — Post-session Report (hidden until hrEndExercise())
+    '<div class="section" id="hr-report-section" style="display:none"></div>';
+
+  document.getElementById('f-hr-note').addEventListener('input', function() {
+    document.getElementById('f-hr-nc').textContent = this.value.length + ' / 500 char';
+  });
+
+  currentSubmit = submitHeartRate;
+}
+
+// Active session time (ms), excluding BLE-dropout pauses
+function hrActiveElapsedMs() {
+  if (!hrStartTime) return 0;
+  var pausedNow = hrPausedAt ? (Date.now() - hrPausedAt) : 0;
+  return Math.max(0, Date.now() - hrStartTime - hrPausedTotal - pausedNow);
+}
+
+async function hrConnect() {
+  if (!navigator.bluetooth) {
+    showErr('Web Bluetooth not supported in this browser. Use Chrome on Android.');
+    return;
+  }
+  var btn = document.getElementById('hr-connect-btn');
+  var statusEl = document.getElementById('hr-ble-status');
+  if (statusEl) { statusEl.textContent = '◌ CONNECTING…'; statusEl.style.color = 'var(--state-warn)'; }
+  if (btn) { btn.textContent = 'CONNECTING…'; btn.disabled = true; }
+
+  try {
+    var device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: ['heart_rate'] }]
+    });
+    hrDevice = device;
+    device.addEventListener('gattserverdisconnected', hrOnDisconnect);
+
+    var server = await device.gatt.connect();
+    var service = await server.getPrimaryService('heart_rate');
+    hrChar = await service.getCharacteristic('heart_rate_measurement');
+    hrChar.addEventListener('characteristicvaluechanged', hrOnData);
+    await hrChar.startNotifications();
+
+    updateHRConnectState('connected');
+  } catch(e) {
+    updateHRConnectState('idle');
+    if (e.name !== 'NotFoundError') {   // NotFoundError = user cancelled picker, not an error
+      showErr('BLE: ' + (e.message || 'connection failed'));
+      autoHideErr(5000);
+    }
+  }
+}
+
+function hrOnData(event) {
+  var value  = event.target.value;
+  var flags  = value.getUint8(0);
+  var is16   = flags & 0x01;
+  var hasRR  = flags & 0x10;
+  var bpm, offset;
+
+  if (is16) {
+    bpm    = value.getUint16(1, true);
+    offset = 3;
+  } else {
+    bpm    = value.getUint8(1);
+    offset = 2;
+  }
+
+  // FIX 1 (resume): data flowing again after a mid-session dropout ends the pause
+  if (hrStartTime && hrPausedAt) {
+    hrPausedTotal += Date.now() - hrPausedAt;
+    hrPausedAt = null;
+    var timerEl = document.getElementById('hr-timer');
+    if (timerEl) timerEl.style.color = 'var(--on-navy-fg)';
+    clearErr();
+  }
+
+  // 5-reading rolling average for smooth display
+  hrBuffer.push(bpm);
+  if (hrBuffer.length > 5) hrBuffer.shift();
+  var avgBpm = Math.round(hrBuffer.reduce(function(a, b) { return a + b; }, 0) / hrBuffer.length);
+
+  var displayEl = document.getElementById('hr-live-bpm');
+  if (displayEl) displayEl.textContent = String(avgBpm).padStart(3, ' ');  // U+2007 figure space for mono alignment
+
+  // Record sample if session is active (one point per 5 active seconds)
+  if (hrStartTime) {
+    var elapsed = Math.floor(hrActiveElapsedMs() / 1000);
+    var last = hrSamples[hrSamples.length - 1];
+    if (!last || elapsed - last.t >= 5) {
+      hrSamples.push({ t: elapsed, bpm: avgBpm });
+    }
+  }
+
+  // FIX 2: collect RR intervals only during an active, unpaused session
+  if (hasRR && hrStartTime && !hrPausedAt) {
+    var rrOffset = offset;
+    while (rrOffset + 1 < value.byteLength) {
+      var rrRaw = value.getUint16(rrOffset, true);
+      hrRRBuffer.push(Math.round((rrRaw / 1024) * 1000));   // convert to ms
+      rrOffset += 2;
+    }
+  }
+}
+
+function hrOnDisconnect() {
+  hrChar = null;
+  updateHRConnectState('idle');
+  var displayEl = document.getElementById('hr-live-bpm');
+  if (displayEl) { displayEl.textContent = '---'; displayEl.style.color = 'var(--state-err)'; }
+  var statusEl = document.getElementById('hr-ble-status');
+  if (statusEl) { statusEl.textContent = '✗ DISCONNECTED'; statusEl.style.color = 'var(--state-err)'; }
+  if (hrStartTime) {
+    // FIX 1: actually pause — freeze active-time accumulation until data resumes
+    if (!hrPausedAt) hrPausedAt = Date.now();
+    var timerEl = document.getElementById('hr-timer');
+    if (timerEl) timerEl.style.color = 'var(--state-warn)';
+    showErr('Monitor disconnected — session paused. Reconnect to continue.');
+    autoHideErr(8000);
+  }
+}
+
+function updateHRConnectState(state) {
+  var statusEl    = document.getElementById('hr-ble-status');
+  var connectBtn  = document.getElementById('hr-connect-btn');
+  var startBtn    = document.getElementById('hr-start-btn');
+  var displayEl   = document.getElementById('hr-live-bpm');
+
+  if (state === 'idle') {
+    if (statusEl)   { statusEl.textContent = '● NOT CONNECTED'; statusEl.style.color = 'var(--state-err)'; }
+    if (connectBtn) { connectBtn.textContent = 'CONNECT MONITOR'; connectBtn.disabled = false; }
+    if (startBtn)   { startBtn.disabled = true; startBtn.style.opacity = '.4'; }
+    if (displayEl)  { displayEl.textContent = '---'; displayEl.style.color = 'var(--state-err)'; }
+  } else if (state === 'connected') {
+    if (statusEl)   { statusEl.textContent = '● CONNECTED'; statusEl.style.color = 'var(--state-ok)'; }
+    if (connectBtn) { connectBtn.textContent = 'RECONNECT'; connectBtn.disabled = false; }
+    if (startBtn)   { startBtn.disabled = false; startBtn.style.opacity = '1'; }
+    if (displayEl)  { displayEl.style.color = 'var(--state-ok)'; }
+  }
+}
+
+function hrStartExercise() {
+  if (!hrDevice || !hrDevice.gatt.connected) {
+    showErr('Connect the monitor first'); autoHideErr(4000); return;
+  }
+  hrStartTime   = Date.now();
+  hrEndTime     = null;
+  hrPausedAt    = null;
+  hrPausedTotal = 0;
+  hrSamples     = [];
+  hrRRBuffer    = [];
+
+  var startBtn = document.getElementById('hr-start-btn');
+  var endBtn   = document.getElementById('hr-end-btn');
+  if (startBtn) startBtn.style.display = 'none';
+  if (endBtn)   endBtn.style.display   = '';
+
+  clearInterval(hrTimerTick);
+  hrTimerTick = setInterval(function() {
+    var el = document.getElementById('hr-timer');
+    if (!el) { clearInterval(hrTimerTick); return; }
+    el.textContent = fmtDur(hrActiveElapsedMs());   // freezes while paused
+  }, 1000);
+}
+
+function hrEndExercise() {
+  if (!hrStartTime) { showErr('No active session'); return; }
+  hrEndTime = Date.now();
+  // Fold any open pause into the total before computing duration
+  if (hrPausedAt) { hrPausedTotal += hrEndTime - hrPausedAt; hrPausedAt = null; }
+  var durationSec = Math.floor((hrEndTime - hrStartTime - hrPausedTotal) / 1000);
+  var pausedSec   = Math.round(hrPausedTotal / 1000);
+  clearInterval(hrTimerTick);
+
+  // Stop BLE notifications (device stays connected for reconnect)
+  if (hrChar) hrChar.stopNotifications().catch(function(){});
+
+  // Compute statistics
+  var allBpm = hrSamples.map(function(s) { return s.bpm; });
+  var bpmAvg = allBpm.length ? Math.round(allBpm.reduce(function(a,b){return a+b;},0) / allBpm.length) : 0;
+  var bpmMax = allBpm.length ? Math.max.apply(null, allBpm) : 0;
+  var bpmMin = allBpm.length ? Math.min.apply(null, allBpm) : 0;
+  var rmssd  = hrCalcRMSSD(hrRRBuffer);
+  var zoneTimes = hrCalcZoneTimes(hrSamples, durationSec);
+
+  var exerciseTypeEl = document.querySelector('#hr-exercise-chips [aria-pressed="true"]');
+  var exerciseType   = exerciseTypeEl ? exerciseTypeEl.textContent.trim() : 'Cardio';
+
+  hrSessionData = {
+    exercise_type:  exerciseType,
+    duration_sec:   durationSec,
+    bpm_avg:        bpmAvg,
+    bpm_max:        bpmMax,
+    bpm_min:        bpmMin,
+    rmssd_ms:       rmssd,
+    zone_time_sec:  zoneTimes,
+    samples:        hrSamples,
+  };
+  if (pausedSec > 0) hrSessionData.paused_sec = pausedSec;
+
+  // Render report
+  var reportEl = document.getElementById('hr-report-section');
+  if (reportEl) {
+    var mm = Math.floor(durationSec / 60);
+    var ss = durationSec % 60;
+    reportEl.innerHTML =
+      '<div class="section-head">' +
+        '<span class="section-head__no">RPT</span>' +
+        '<span class="section-head__title">Session Report</span>' +
+        '<span class="section-head__right">' + exerciseType.toUpperCase() + '</span>' +
+      '</div>' +
+      '<div style="padding:var(--s-7) var(--s-9)">' + hrBuildLineChart(hrSamples, 380, 190) + '</div>' +
+      '<div class="field-grid field-grid--3" style="padding:var(--s-6) var(--s-9)">' +
+        '<div class="cell"><span class="cell__label">DURATION</span>' +
+          '<span class="cell__value">' + String(mm).padStart(2,'0') + ':' + String(ss).padStart(2,'0') + '</span></div>' +
+        '<div class="cell"><span class="cell__label">AVG BPM</span>' +
+          '<span class="cell__value">' + bpmAvg + '</span></div>' +
+        '<div class="cell"><span class="cell__label">MAX BPM</span>' +
+          '<span class="cell__value">' + bpmMax + '</span></div>' +
+        '<div class="cell"><span class="cell__label">MIN BPM</span>' +
+          '<span class="cell__value">' + bpmMin + '</span></div>' +
+        '<div class="cell"><span class="cell__label">HRV RMSSD</span>' +
+          '<span class="cell__value">' + (rmssd !== null ? rmssd + ' ms' : '—') + '</span></div>' +
+        (pausedSec > 0 ?
+        '<div class="cell"><span class="cell__label">PAUSED</span>' +
+          '<span class="cell__value">' + Math.floor(pausedSec/60) + ':' + String(pausedSec%60).padStart(2,'0') + '</span></div>' : '') +
+      '</div>' +
+      '<div class="section-head" style="margin-top:2px">' +
+        '<span class="section-head__no">ZNS</span>' +
+        '<span class="section-head__title">Zone Breakdown</span>' +
+      '</div>' +
+      '<div style="padding:var(--s-7) var(--s-9)">' + hrBuildZoneChart(zoneTimes, durationSec) + '</div>';
+    reportEl.style.display = '';
+  }
+
+  // Show LOG IT footer
+  showSaf('LOG IT');
+}
+
+function hrCalcRMSSD(rrArray) {
+  if (!rrArray || rrArray.length < 2) return null;
+  var sumSq = 0;
+  for (var i = 1; i < rrArray.length; i++) {
+    var diff = rrArray[i] - rrArray[i - 1];
+    sumSq += diff * diff;
+  }
+  return Math.round(Math.sqrt(sumSq / (rrArray.length - 1)));
+}
+
+function hrCalcZoneTimes(samples, totalSec) {
+  var times = { sub1: 0, z1: 0, z2: 0, z3: 0, z4: 0, z5: 0 };
+  for (var i = 0; i < samples.length; i++) {
+    var zone = HR_ZONES.find(function(z) { return samples[i].bpm >= z.min && samples[i].bpm <= z.max; });
+    if (!zone) zone = HR_ZONES[0];
+    var dur = (i < samples.length - 1) ? (samples[i+1].t - samples[i].t) : Math.max(0, totalSec - samples[i].t);
+    times[zone.key] = (times[zone.key] || 0) + dur;
+  }
+  return times;
+}
+
+function hrBuildLineChart(samples, width, height) {
+  if (!samples || samples.length < 2) {
+    return '<div class="empty-state" style="padding:var(--s-9)">Insufficient data for chart</div>';
+  }
+  var pad = { top: 20, right: 12, bottom: 28, left: 38 };
+  var W   = width  - pad.left - pad.right;
+  var H   = height - pad.top  - pad.bottom;
+
+  var maxT   = samples[samples.length - 1].t || 1;
+  var bpms   = samples.map(function(s) { return s.bpm; });
+  var rawMin = Math.min.apply(null, bpms);
+  var rawMax = Math.max.apply(null, bpms);
+  var yMin   = Math.max(40,  rawMin - 15);
+  var yMax   = Math.min(185, rawMax + 15);
+
+  function xScale(t)   { return (t   / maxT)         * W; }
+  function yScale(bpm) { return H - ((bpm - yMin) / (yMax - yMin)) * H; }
+
+  // Zone background bands
+  var bands = HR_ZONES.map(function(z) {
+    var bandTop    = Math.max(0, Math.min(H, yScale(z.max + 1)));
+    var bandBottom = Math.max(0, Math.min(H, yScale(z.min)));
+    if (bandBottom <= bandTop) return '';
+    return '<rect x="0" y="' + bandTop.toFixed(1) + '" width="' + W + '" height="' +
+      (bandBottom - bandTop).toFixed(1) + '" fill="' + z.color + '" opacity="0.10"/>';
+  }).join('');
+
+  // Polyline points
+  var pts = samples.map(function(s) {
+    return xScale(s.t).toFixed(1) + ',' + yScale(s.bpm).toFixed(1);
+  }).join(' ');
+
+  // Y-axis labels (3 values)
+  var yVals = [yMin, Math.round((yMin + yMax) / 2), yMax];
+  var yLabels = yVals.map(function(v) {
+    return '<text x="-5" y="' + yScale(v).toFixed(1) + '" text-anchor="end" ' +
+      'font-size="9" fill="#94a3b8" dominant-baseline="middle" font-family="monospace">' + v + '</text>';
+  }).join('');
+
+  // FIX 3: X-axis labels — 30s granularity for short sessions, m:ss when needed
+  var xLabels = '';
+  var xStepSec = Math.max(30, Math.ceil(maxT / 4 / 30) * 30);
+  var wholeMin = (xStepSec % 60 === 0);
+  for (var t = 0; t <= maxT; t += xStepSec) {
+    var xPos = xScale(t);
+    var lbl  = wholeMin ? (Math.floor(t / 60) + 'm')
+                        : (Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'));
+    xLabels += '<text x="' + xPos.toFixed(1) + '" y="' + (H + 18) + '" text-anchor="middle" ' +
+      'font-size="9" fill="#94a3b8" font-family="monospace">' + lbl + '</text>';
+  }
+
+  // Axes
+  var axes =
+    '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" stroke="#d6cfbf" stroke-width="1"/>' +
+    '<line x1="0" y1="0" x2="0" y2="' + H + '" stroke="#d6cfbf" stroke-width="1"/>';
+
+  return '<svg viewBox="0 0 ' + width + ' ' + height + '" xmlns="http://www.w3.org/2000/svg" ' +
+    'style="width:100%;height:auto;display:block">' +
+    '<g transform="translate(' + pad.left + ',' + pad.top + ')">' +
+      bands +
+      '<polyline points="' + pts + '" fill="none" stroke="#3a8fd1" stroke-width="2" ' +
+        'stroke-linejoin="round" stroke-linecap="round"/>' +
+      yLabels + xLabels + axes +
+    '</g></svg>';
+}
+
+function hrBuildZoneChart(zoneTimes, totalSec) {
+  if (!totalSec) return '<div class="empty-state">No zone data</div>';
+  return HR_ZONES.map(function(z) {
+    var sec = (zoneTimes && zoneTimes[z.key]) || 0;
+    var pct = totalSec > 0 ? Math.round((sec / totalSec) * 100) : 0;
+    var mm  = Math.floor(sec / 60);
+    var ss  = sec % 60;
+    var timeStr = mm + ':' + String(ss).padStart(2, '0');
+    return '<div style="margin-bottom:var(--s-7)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">' +
+        '<span style="font:600 10px/1 var(--font-sans);letter-spacing:.14em;text-transform:uppercase;color:' +
+          (sec > 0 ? 'var(--ink)' : 'var(--ink-muted)') + '">' + z.label + '</span>' +
+        '<span style="font:400 11px/1 var(--font-mono);color:var(--ink-dim)">' + timeStr + '</span>' +
+      '</div>' +
+      '<div style="height:12px;background:var(--paper-edge);border:1px solid var(--paper-line)">' +
+        '<div style="height:100%;width:' + pct + '%;background:' + z.color +
+          ';opacity:' + (sec > 0 ? '0.85' : '0') + ';transition:width .3s ease"></div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function submitHeartRate() {
+  if (!hrSessionData) { showErr('No session data — complete a session first'); return; }
+  var startISO = hrStartTime ? new Date(hrStartTime).toISOString() : new Date().toISOString();
+  var endISO   = new Date(hrEndTime || (hrStartTime + hrSessionData.duration_sec * 1000)).toISOString();
+  var noteEl   = document.getElementById('f-hr-note');
+  var note     = noteEl ? noteEl.value.trim() || null : null;
+
+  await writeEntry('heart_rate', startISO, endISO, note, hrSessionData);
+
+  // Cleanup all HR state after successful write
+  hrSessionData = null;
+  hrStartTime   = null;
+  hrEndTime     = null;
+  hrPausedAt    = null;
+  hrPausedTotal = 0;
+  hrSamples     = [];
+  hrRRBuffer    = [];
+  hrBuffer      = [];
+  if (hrDevice) { try { hrDevice.gatt.disconnect(); } catch(e){} }
+  hrDevice = null;
+  hrChar   = null;
+}
+
 // ── CONFIRM SCREEN ─────────────────────────────────────────────────────────
 function renderConfirm() {
   var e = confirmEntry;
@@ -1594,6 +2071,24 @@ function formatMetaReadable(type, meta, notes, startedAt, endedAt) {
   };
   row('logged', fmtTime(startedAt));
   switch (type) {
+    case 'heart_rate':
+      row('exercise',    meta.exercise_type || '');
+      var durM = Math.floor((meta.duration_sec || 0) / 60);
+      var durS = (meta.duration_sec || 0) % 60;
+      row('duration',    durM + ' min ' + String(durS).padStart(2,'0') + ' sec');
+      if (meta.paused_sec) row('paused', Math.floor(meta.paused_sec/60) + ':' + String(meta.paused_sec%60).padStart(2,'0') + ' (BLE dropout)');
+      row('avg bpm',     meta.bpm_avg || '');
+      row('max bpm',     meta.bpm_max || '');
+      row('min bpm',     meta.bpm_min || '');
+      if (meta.rmssd_ms) row('hrv rmssd', meta.rmssd_ms + ' ms');
+      if (meta.zone_time_sec) {
+        var zt = meta.zone_time_sec;
+        HR_ZONES.forEach(function(z) {
+          var s = zt[z.key] || 0;
+          if (s > 0) row(z.label.toLowerCase(), Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'));
+        });
+      }
+      break;
     case 'fast':
       if (endedAt) {
         var dur = ((new Date(endedAt) - new Date(startedAt)) / 3600000).toFixed(1);
