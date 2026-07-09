@@ -618,6 +618,8 @@ let hrPausedAt    = null;   // Date.now() when BLE dropped mid-session (null = n
 let hrPausedTotal = 0;      // Accumulated paused ms — excluded from duration & zones
 let hrSessionData = null;   // Computed results object, populated by hrEndExercise()
 let hrTimerTick   = null;   // setInterval reference for session timer display
+let hrLastPacketAt = null;  // Date.now() of last BLE packet — watchdog for silent gaps
+let hrWakeLock    = null;   // Screen Wake Lock sentinel (keeps display on during session)
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -639,6 +641,7 @@ function render() {
   if (hrChar)   { hrChar.stopNotifications().catch(function(){}); hrChar = null; }
   if (hrDevice) { try { hrDevice.gatt.disconnect(); } catch(e){} hrDevice = null; }
   clearInterval(hrTimerTick);
+  hrReleaseWakeLock();
   const hash = location.hash || '#home';
   const scroll = document.getElementById('scroll');
   hideSaf();
@@ -1435,8 +1438,10 @@ function buildHeartRateForm(meta) {
         '<span class="section-head__title">Exercise Type</span>' +
       '</div>' +
       '<div class="chips" id="hr-exercise-chips">' +
-        '<button class="chip" aria-pressed="true"  onclick="selectChip(this,\'hr-exercise-chips\')">Cardio</button>' +
-        '<button class="chip" aria-pressed="false" onclick="selectChip(this,\'hr-exercise-chips\')">Weightlifting</button>' +
+        ['Cardio','Weightlifting','HIIT','Z2Cardio'].map(function(t, i) {
+          return '<button class="chip" aria-pressed="' + (i === 0) + '" ' +
+            'onclick="selectChip(this,\'hr-exercise-chips\')" style="font-size:10px">' + t + '</button>';
+        }).join('') +
       '</div>' +
     '</div>' +
 
@@ -1533,13 +1538,20 @@ function hrOnData(event) {
   }
 
   // FIX 1 (resume): data flowing again after a mid-session dropout ends the pause
+  var now = Date.now();
   if (hrStartTime && hrPausedAt) {
-    hrPausedTotal += Date.now() - hrPausedAt;
+    hrPausedTotal += now - hrPausedAt;
     hrPausedAt = null;
     var timerEl = document.getElementById('hr-timer');
     if (timerEl) timerEl.style.color = 'var(--on-navy-fg)';
     clearErr();
+  } else if (hrStartTime && hrLastPacketAt && now - hrLastPacketAt > 10000) {
+    // WATCHDOG: packets went silent with no disconnect event (screen sleep,
+    // marginal radio below supervision timeout). Retroactively exclude the
+    // silent gap — minus one nominal 1 s packet interval — from active time.
+    hrPausedTotal += (now - hrLastPacketAt) - 1000;
   }
+  hrLastPacketAt = now;
 
   // 5-reading rolling average for smooth display
   hrBuffer.push(bpm);
@@ -1609,12 +1621,15 @@ function hrStartExercise() {
   if (!hrDevice || !hrDevice.gatt.connected) {
     showErr('Connect the monitor first'); autoHideErr(4000); return;
   }
-  hrStartTime   = Date.now();
-  hrEndTime     = null;
-  hrPausedAt    = null;
-  hrPausedTotal = 0;
-  hrSamples     = [];
-  hrRRBuffer    = [];
+  hrStartTime    = Date.now();
+  hrEndTime      = null;
+  hrPausedAt     = null;
+  hrPausedTotal  = 0;
+  hrLastPacketAt = null;
+  hrSamples      = [];
+  hrRRBuffer     = [];
+
+  hrRequestWakeLock();   // keep screen on — screen sleep suspends Web Bluetooth
 
   var startBtn = document.getElementById('hr-start-btn');
   var endBtn   = document.getElementById('hr-end-btn');
@@ -1626,14 +1641,40 @@ function hrStartExercise() {
     var el = document.getElementById('hr-timer');
     if (!el) { clearInterval(hrTimerTick); return; }
     el.textContent = fmtDur(hrActiveElapsedMs());   // freezes while paused
+    // Amber timer whenever data is stale (event-driven pause OR silent gap)
+    var stale = hrPausedAt || (hrLastPacketAt && Date.now() - hrLastPacketAt > 10000);
+    el.style.color = stale ? 'var(--state-warn)' : 'var(--on-navy-fg)';
   }, 1000);
 }
+
+// ── SCREEN WAKE LOCK ── screen off = page suspended = no BLE data ──────────
+async function hrRequestWakeLock() {
+  if (!('wakeLock' in navigator)) return;   // unsupported — watchdog still protects data
+  try {
+    hrWakeLock = await navigator.wakeLock.request('screen');
+    hrWakeLock.addEventListener('release', function() { hrWakeLock = null; });
+  } catch(e) { /* denied (battery saver etc.) — non-fatal, watchdog covers gaps */ }
+}
+
+function hrReleaseWakeLock() {
+  if (hrWakeLock) { hrWakeLock.release().catch(function(){}); hrWakeLock = null; }
+}
+
+// Wake locks auto-release when the page is hidden — reacquire on return
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && hrStartTime && !hrEndTime) hrRequestWakeLock();
+});
 
 function hrEndExercise() {
   if (!hrStartTime) { showErr('No active session'); return; }
   hrEndTime = Date.now();
+  hrReleaseWakeLock();
   // Fold any open pause into the total before computing duration
   if (hrPausedAt) { hrPausedTotal += hrEndTime - hrPausedAt; hrPausedAt = null; }
+  // WATCHDOG: fold a silent tail (session ended while data was stale) too
+  else if (hrLastPacketAt && hrEndTime - hrLastPacketAt > 10000) {
+    hrPausedTotal += (hrEndTime - hrLastPacketAt) - 1000;
+  }
   var durationSec = Math.floor((hrEndTime - hrStartTime - hrPausedTotal) / 1000);
   var pausedSec   = Math.round(hrPausedTotal / 1000);
   clearInterval(hrTimerTick);
@@ -1822,14 +1863,15 @@ async function submitHeartRate() {
   await writeEntry('heart_rate', startISO, endISO, note, hrSessionData);
 
   // Cleanup all HR state after successful write
-  hrSessionData = null;
-  hrStartTime   = null;
-  hrEndTime     = null;
-  hrPausedAt    = null;
-  hrPausedTotal = 0;
-  hrSamples     = [];
-  hrRRBuffer    = [];
-  hrBuffer      = [];
+  hrSessionData  = null;
+  hrStartTime    = null;
+  hrEndTime      = null;
+  hrPausedAt     = null;
+  hrPausedTotal  = 0;
+  hrLastPacketAt = null;
+  hrSamples      = [];
+  hrRRBuffer     = [];
+  hrBuffer       = [];
   if (hrDevice) { try { hrDevice.gatt.disconnect(); } catch(e){} }
   hrDevice = null;
   hrChar   = null;
