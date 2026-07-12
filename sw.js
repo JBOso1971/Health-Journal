@@ -1,5 +1,5 @@
 // Service Worker — cache app shell for offline load
-const CACHE = 'jb-health-v6';
+const CACHE = 'jb-health-v7';
 const SHELL = ['/Health-Journal/', '/Health-Journal/index.html', '/Health-Journal/manifest.json'];
 
 self.addEventListener('install', e => {
