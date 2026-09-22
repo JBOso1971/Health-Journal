@@ -2,6 +2,7 @@
   "name": "JB Health Journal",
   "short_name": "Health Log",
   "description": "Personal health event logger",
+  "id": "/Health-Journal/",
   "start_url": "/Health-Journal/",
   "scope": "/Health-Journal/",
   "display": "standalone",
@@ -24,4 +25,8 @@
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

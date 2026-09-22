@@ -87,6 +87,21 @@ test('S4 wiring: Log Review hides discarded behind a toggle, labels states, file
   assert.match(html, /let rvShowDiscarded = false;/);
 });
 
+test('manifest.json parses and meets Chrome\'s install criteria (found TRUNCATED on 2026-09-21: the shortcut-not-app cause)', () => {
+  const raw = readFileSync(join(ROOT, 'manifest.json'), 'utf8');
+  let m;
+  assert.doesNotThrow(() => { m = JSON.parse(raw); }, 'manifest.json is not valid JSON');
+  assert.equal(m.display, 'standalone');
+  assert.equal(m.start_url, '/Health-Journal/');
+  assert.equal(m.scope, '/Health-Journal/');
+  assert.ok(m.name && m.short_name, 'name and short_name');
+  const sizes = new Set(m.icons.filter(i => (i.purpose || 'any').split(' ').includes('any')).map(i => i.sizes));
+  assert.ok(sizes.has('192x192') && sizes.has('512x512'), 'installability needs 192 and 512 icons with purpose any');
+  for (const i of m.icons) assert.ok(existsSync(join(ROOT, i.src)), 'icon file missing: ' + i.src);
+  assert.match(sw, /'\/Health-Journal\/manifest\.json'/, 'sw.js SHELL does not cache the manifest');
+  assert.match(html, /<link rel="manifest" href="manifest.json">/);
+});
+
 test('the constants the app reads come from the core, not a second literal', () => {
   assert.doesNotMatch(html, /HR_STORE_TICK_SEC\s*=\s*\d+/, 'index.html defines its own tick constant');
   assert.doesNotMatch(html, /HR_STALE_SEC\s*=\s*\d+/, 'index.html defines its own stale constant');
