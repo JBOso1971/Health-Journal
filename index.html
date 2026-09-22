@@ -2874,9 +2874,12 @@ async function renderLogReview() {
     '<span class="section-head__title">Last 10 entries</span>' +
     '<span class="section-head__right" id="rv-count">loading&hellip;</span>' +
     '</div>' +
+    // JA2 S5: the toggle sits ABOVE the list — in the footer it rendered under the fixed
+    // sign-and-file bar on a phone and a tap landed on the bar (found live 2026-09-22)
+    '<div id="rv-discard-toggle" style="padding:var(--s-5) var(--s-9);font:400 10.5px/1.8 var(--font-mono);color:var(--ink-dim)"></div>' +
     '<div id="rv-list"><div class="empty-state">Loading&hellip;</div></div>' +
     '</div>' +
-    '<div class="audit-footer">&middot; tap any row to expand details &middot; <a href="#" style="color:inherit" onclick="rvShowDiscarded=!rvShowDiscarded;render();return false">' + (rvShowDiscarded ? 'hide' : 'show') + ' discarded sessions</a></div>';
+    '<div class="audit-footer">&middot; tap any row to expand details</div>';
   if (!db) {
     document.getElementById('rv-list').innerHTML = '<div class="empty-state">configure backend</div>';
     return;
@@ -2890,6 +2893,9 @@ async function renderLogReview() {
   }
   // JA2 §2.4: discarded sessions are hidden unless asked for; in-progress / unfiled are labelled
   var data = result.data.filter(function(e) { return rvShowDiscarded || HRCore.stateOf(e) !== 'discarded'; });
+  var nDiscarded = result.data.filter(function(e) { return HRCore.stateOf(e) === 'discarded'; }).length;
+  document.getElementById('rv-discard-toggle').innerHTML = '<a href="#" style="color:inherit;display:inline-block;padding:10px 0" onclick="rvShowDiscarded=!rvShowDiscarded;render();return false">' +
+    (rvShowDiscarded ? 'hide discarded sessions' : 'show discarded sessions (' + nDiscarded + ' hidden)') + '</a>';
   if (countEl) countEl.textContent = data.length + (data.length === 1 ? ' entry' : ' entries');
   document.getElementById('rv-list').innerHTML = data.map(function(e, idx) {
     var m       = EMETA[e.entry_type] || { code: e.entry_type.substring(0,2).toUpperCase(), label: e.entry_type };

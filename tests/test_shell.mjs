@@ -87,6 +87,18 @@ test('S4 wiring: Log Review hides discarded behind a toggle, labels states, file
   assert.match(html, /let rvShowDiscarded = false;/);
 });
 
+test('Log Review: the discarded toggle renders ABOVE the list, never in the footer under the fixed bar (found live 2026-09-22)', () => {
+  const view = html.slice(html.indexOf('async function renderLogReview()'), html.indexOf('function toggleReviewDetail'));
+  const slot = view.indexOf('id="rv-discard-toggle"'), list = view.indexOf('id="rv-list"'), footer = view.indexOf('class="audit-footer"');
+  assert.ok(slot > -1 && list > -1 && footer > -1, 'toggle slot, list and footer all present');
+  assert.ok(slot < list, 'the toggle slot precedes the list');
+  const footerLine = view.slice(footer, view.indexOf('\n', footer));
+  assert.doesNotMatch(footerLine, /rvShowDiscarded/, 'the toggle is not in the footer');
+  // the slot is filled with a working toggle that names how many are hidden
+  assert.match(view, /getElementById\('rv-discard-toggle'\)\.innerHTML = [^\n]*onclick="rvShowDiscarded=!rvShowDiscarded;render\(\);return false"/);
+  assert.match(view, /nDiscarded \+ ' hidden\)'/);
+});
+
 test('manifest.json parses and meets Chrome\'s install criteria (found TRUNCATED on 2026-09-21: the shortcut-not-app cause)', () => {
   const raw = readFileSync(join(ROOT, 'manifest.json'), 'utf8');
   let m;
