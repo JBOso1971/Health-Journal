@@ -21,7 +21,8 @@ export function runFile(path) {
   const proc = spawnSync(process.execPath, ['--test', '--test-reporter=tap', path], { cwd: ROOT, encoding: 'utf8' });
   const out = (proc.stdout || '') + (proc.stderr || '');
   const ran = (out.match(/^\s*(not )?ok \d+/gm) || []).length;
-  const failed = [...out.matchAll(/^\s*not ok \d+ - (.+)$/gm)].map(m => m[1].trim());
+  // TAP escapes '#' and '\' in a test name; unescape, or a name carrying '#' can never be matched (found W2 S3)
+  const failed = [...out.matchAll(/^\s*not ok \d+ - (.+)$/gm)].map(m => m[1].trim().replace(/\\([#\\])/g, '$1'));
   return { code: proc.status ?? 1, out, ran, failed };
 }
 

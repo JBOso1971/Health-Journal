@@ -572,60 +572,23 @@
 </div>
 
 <script src="hr-core.js"></script>
+<script src="pb-client.js"></script>
 <script>
 // ── CONFIG ─────────────────────────────────────────────────────────────────
 const PB_URL = 'https://journal-api.fybertech.cloud';
 
-// ── POCKETBASE CLIENT (minimal REST wrapper, no SDK) ────────────────────────
-// Self-hosted replacement for the old supabase-js client. The collection's
-// API rules are public (no auth), matching the old anon-key trust model, so
-// no Authorization header is needed.
-const PB = {
-  async list(params) {
-    const qs = new URLSearchParams(params).toString();
-    try {
-      const res  = await fetch(`${PB_URL}/api/collections/journal_entries/records?${qs}`);
-      const json = await res.json();
-      if (!res.ok) return { data: null, error: json };
-      return { data: json.items, error: null };
-    } catch (e) { return { data: null, error: { message: String(e) } }; }
-  },
-  async get(id) {
-    try {
-      const res  = await fetch(`${PB_URL}/api/collections/journal_entries/records/${id}`);
-      const json = await res.json();
-      if (!res.ok) return { data: null, error: json };
-      return { data: json, error: null };
-    } catch (e) { return { data: null, error: { message: String(e) } }; }
-  },
-  async insert(record) {
-    try {
-      const res = await fetch(`${PB_URL}/api/collections/journal_entries/records`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(record)
-      });
-      const json = await res.json();
-      if (!res.ok) return { data: null, error: json };
-      return { data: json, error: null };
-    } catch (e) { return { data: null, error: { message: String(e) } }; }
-  },
-  async update(id, record) {
-    try {
-      const res = await fetch(`${PB_URL}/api/collections/journal_entries/records/${id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(record)
-      });
-      const json = await res.json();
-      if (!res.ok) return { data: null, error: json };
-      return { data: json, error: null };
-    } catch (e) { return { data: null, error: { message: String(e) } }; }
-  },
-  async remove(id) {
-    try {
-      const res = await fetch(`${PB_URL}/api/collections/journal_entries/records/${id}`, { method: 'DELETE' });
-      if (!res.ok) { const json = await res.json().catch(() => ({})); return { error: json }; }
-      return { error: null };
-    } catch (e) { return { error: { message: String(e) } }; }
-  },
-};
+// ── POCKETBASE CLIENT (pb-client.js; W2: native auth on journal_entries) ────
+// Every request goes through PBClient -- this script issues no fetch of its own.
+// No usable token => no request: the sign-in screen, never an empty-looking app.
+const PB = PBClient.create({ url: PB_URL, fetch: function(u, o) { return fetch(u, o); },
+                             storage: localStorage, onAuthLost: pbAuthLost });
+
+// W2: a lost session routes to the sign-in screen -- except during a capture, which is
+// never interrupted (its store ticks count as missed; the local checkpoint carries on).
+function pbAuthLost() {
+  if (hrSessionActive) return;
+  if (location.hash !== '#signin') location.hash = '#signin';
+}
 
 // PocketBase date-filter values need a space, not 'T', separating date/time.
 function pbDate(iso) { return iso.replace('T', ' '); }
@@ -716,6 +679,7 @@ window.addEventListener('DOMContentLoaded', () => {
     db = true;
   }
   window.addEventListener('hashchange', render);
+  PB.refresh();         // W2: extend the token on every launch; a refusal routes to sign-in, offline keeps it
   hrStore = HRCore.createStoreSession(PB);
   hrLaunchRecovery();   // JA2: ask the store for an open session (async; re-renders home if it finds one)
   // A1: an unfinished/unlogged HR session checkpoint takes precedence —
@@ -752,6 +716,17 @@ function render() {
   hrReleaseWakeLock();
   const scroll = document.getElementById('scroll');
   hideSaf();
+
+  // W2: signed out -> the sign-in screen, for every route (after the capture lock above:
+  // a recording is never interrupted by the gate). Local drafts are untouched either way.
+  if (!PB.signedIn()) {
+    if (hash !== '#signin') { location.hash = '#signin'; return; }
+    scroll.classList.remove('scroll--nofooter');
+    renderSignIn();
+    document.getElementById('scroll').scrollTop = 0;
+    return;
+  }
+  if (hash === '#signin') { location.hash = '#home'; return; }
 
   if (hash === '#home' || hash === '#') {
     scroll.classList.add('scroll--nofooter');
@@ -799,6 +774,7 @@ function renderHome() {
       </div>
       <button class="fast-banner__end" onclick="endFast()">END FAST</button>
     </div>` : ''}
+    <div class="err-band" id="err-band"></div>
 
     ${hrResumeBannerHTML()}
 
@@ -838,10 +814,55 @@ function renderHome() {
     <div class="audit-footer">
       &middot; subject 01 &middot; health.db<br>
       &middot; journal v3 &middot; medical record ui<br>
-      <span class="ok">+</span> data writes to pocketbase in real-time
+      <span class="ok">+</span> data writes to pocketbase in real-time<br>
+      &middot; signed in &middot; ${escHtml(PB.identity() || '')} &middot; <a href="#" id="sign-out" style="color:inherit;display:inline-block;padding:10px 0" onclick="signOutClick();return false">sign out</a>
     </div>`;
 
   if (activeFast) startFastBannerTimer(activeFast);
+}
+
+// ── SIGN IN (W2) ───────────────────────────────────────────────────────────
+// No sign-up: there is one account, created by JB on the box (W2 S2).
+function renderSignIn() {
+  currentType = 'signin';
+  var why = PB.state.reason === 'expired' ? 'session expired' : PB.state.reason === 'refused' ? 'session refused by the server' : 'signed out';
+  document.getElementById('app').innerHTML =
+    '<div class="med-header"><div class="med-header__top">' +
+    '<span class="rx-badge">&#8478;</span><span class="header-eyebrow">HEALTH.DB &middot; JOURNAL</span></div>' +
+    '<div class="header-sub">' + fmtHeaderDate(new Date()) + '</div>' +
+    '<div class="header-title">Sign in</div></div>' +
+    '<div class="section"><div class="section-head"><span class="section-head__no">&sect;01</span>' +
+    '<span class="section-head__title">Journal account</span></div>' +
+    '<div class="field-grid field-grid--1">' +
+      '<label class="cell"><span class="cell__label">EMAIL</span>' +
+      '<input class="cell__value" id="si-email" type="email" autocomplete="username" inputmode="email" autocapitalize="off"></label>' +
+      '<label class="cell"><span class="cell__label">PASSWORD</span>' +
+      '<input class="cell__value" id="si-password" type="password" autocomplete="current-password"></label>' +
+    '</div></div>' +
+    '<div class="audit-footer">&middot; ' + why + '<br>&middot; unfiled sessions and an active fast stay on this phone</div>';
+  showSaf('SIGN IN');
+  currentSubmit = submitSignIn;
+}
+
+async function submitSignIn() {
+  var em = document.getElementById('si-email'), pw = document.getElementById('si-password');
+  var identity = em ? em.value.trim() : '';
+  if (!identity || !pw || !pw.value) { showErr('email and password required'); return; }
+  setBtnLoading(true); clearErr();
+  var r = await PB.signIn(identity, pw.value);
+  pw.value = '';                // the password lives only in the request
+  setBtnLoading(false);
+  if (r.error) { showErr(r.error.message || 'sign-in refused'); return; }
+  navigate('#home');
+}
+
+function signOutClick() {       // Q8: clears the token only -- jf, hr_session and the slots survive
+  PB.signOut();
+  navigate('#signin');
+}
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, function(c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; });
 }
 
 function startFastBannerTimer(fast) {
@@ -855,59 +876,6 @@ function startFastBannerTimer(fast) {
   }
   update();
   fastTick = setInterval(update, 1000);
-}
-
-async function loadTodayEntries() {
-  const el      = document.getElementById('today-entries');
-  const countEl = document.getElementById('today-count');
-  if (!el) return;
-  if (!db) { el.innerHTML = '<div class="empty-state">configure backend</div>'; return; }
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-  const { data, error } = await PB.list({
-    filter: `started_at >= "${pbDate(todayStart.toISOString())}"`,
-    sort: '-started_at',
-  });
-  if (error || !data || !data.length) {
-    el.innerHTML = '<div class="empty-state">no entries logged today</div>';
-    if (countEl) countEl.textContent = '0 entries';
-    return;
-  }
-  if (countEl) countEl.textContent = data.length + (data.length === 1 ? ' entry' : ' entries');
-  el.innerHTML = data.map(e => {
-    const m      = EMETA[e.entry_type] || { code: e.entry_type.substring(0,2).toUpperCase(), label: e.entry_type };
-    const meta   = e.metadata || {};
-    const detail = entryDetail(e.entry_type, meta, e.notes);
-    const status = (e.entry_type === 'fast' && !e.ended_at) ? 'active' : 'complete';
-    return `<div class="intervention">
-      <span class="intervention__code">${m.code}</span>
-      <span class="intervention__type">${m.label}</span>
-      <span class="intervention__value">${ago(new Date(e.started_at))}</span>
-      <span></span>
-      <span class="intervention__admin">${detail}</span>
-      <span class="intervention__pill">
-        <span class="pill pill--${status}">${status === 'active' ? 'IN PROGRESS' : 'COMPLETE'}</span>
-      </span>
-    </div>`;
-  }).join('');
-}
-
-function entryDetail(type, meta, notes) {
-  switch (type) {
-    case 'heart_rate':
-      return (meta.exercise_type || 'Cardio') + ' · ' +
-        Math.floor((meta.duration_sec || 0) / 60) + ' min · avg ' +
-        (meta.bpm_avg || '--') + ' bpm';
-    case 'fast':       return (meta.fast_type || meta.protocol_label || '') + (notes ? ' · ' + notes.substring(0,30) : '');
-    case 'supplement': return (meta.taken || []).length + ' supplements logged';
-    case 'red_light':  return (meta.duration_min || '') + ' min' + (meta.zone || meta.area ? ' · ' + (meta.zone || meta.area) : '');
-    case 'sauna':      return (meta.duration_min || '') + ' min · ' + (meta.type || meta.heat_type || '');
-    case 'alcohol':    return (meta.drinks || '') + ' drink' + ((meta.drinks > 1) ? 's' : '') + (meta.type ? ' · ' + meta.type : '');
-    case 'massage':    return (meta.duration_min || '') + ' min · ' + (meta.type || '');
-    case 'flight':     return (meta.from || '') + ' → ' + (meta.to || '');
-    case 'timezone':   return (meta.from_tz || '') + ' → ' + (meta.to_tz || '');
-    case 'note':       return (meta.text || notes || '').substring(0, 50);
-    default:           return notes || '';
-  }
 }
 
 // ── FORM DISPATCHER ────────────────────────────────────────────────────────
@@ -1707,13 +1675,15 @@ function hrDiscardSession(slot) {
   if (location.hash === '#home') render(); else navigate('#home');
 }
 async function hrStoreDiscard(cp) {
+  // W2 (C-8): a refusal is shown, never swallowed -- the local discard slot keeps the session either way
   var cur = await PB.get(cp.pb_id);
-  if (cur.error || !cur.data) return;
+  if (cur.error || !cur.data) { showErr('the store did not record the discard (' + ((cur.error && cur.error.message) || 'no record') + ') -- kept on this phone'); return; }
   var m = Object.assign({}, cur.data.metadata || {}, { state: 'discarded', v: 2 });
   m.samples = HRCore.mergeSamples(m.samples || [], cp.samples || []);
   var body = { metadata: m };
   if (!cur.data.ended_at) body.ended_at = new Date(cp.ended_at || Date.now()).toISOString();
-  await PB.update(cp.pb_id, body);
+  var u = await PB.update(cp.pb_id, body);
+  if (u.error) showErr('the store did not record the discard (' + (u.error.message || 'refused') + ') -- kept on this phone');
 }
 
 function hrResumeSession() {
@@ -2164,8 +2134,7 @@ function hrFlushOnHide() {
   if (!db || !hrStore || !hrStore.state.pbId) return;
   try {
     var body = { metadata: HRCore.checkpointPayload(Object.assign(hrSnapshot(), { state: 'active' }), new Date().toISOString()) };
-    fetch(PB_URL + '/api/collections/journal_entries/records/' + hrStore.state.pbId, {
-      method: 'PATCH', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    PB.flush(hrStore.state.pbId, body);   // keepalive: true, with the token (pb-client.js)
   } catch(e) { /* best effort — the next tick or the launch recovery covers it */ }
 }
 window.addEventListener('pagehide', hrFlushOnHide);
@@ -2592,11 +2561,12 @@ function showSafUndo(entryId, undoInterval) {
     '<button class="btn-secondary" onclick="navigate(\'#home\')">Back to Today</button>';
 }
 
-function showSafBackOnly() {
+function showSafBackOnly(errMsg) {
   var saf = document.getElementById('saf');
   if (!saf) return;
   saf.style.display = '';
-  saf.innerHTML = '<button class="btn-secondary" onclick="navigate(\'#home\')">Back to Today</button>';
+  saf.innerHTML = (errMsg ? '<div class="err-band show" id="err-band" style="display:block">&#10799; ERR &middot; ' + escHtml(errMsg) + '</div>' : '') +
+    '<button class="btn-secondary" onclick="navigate(\'#home\')">Back to Today</button>';
 }
 
 // ── CORE WRITE ─────────────────────────────────────────────────────────────
@@ -2617,9 +2587,12 @@ async function writeEntry(type, startedAt, endedAt, notes, metadata) {
 async function undoEntry(id, intervalId) {
   clearInterval(intervalId);
   if (db && id) {
+    var r;
     if (confirmEntry && confirmEntry.entry_type === 'heart_rate') {   // JA2 §1.3: a session is never deleted — undo = discard (restorable in Log Review)
-      await PB.update(id, { metadata: Object.assign({}, confirmEntry.metadata || {}, { state: 'discarded' }) });
-    } else await PB.remove(id);
+      r = await PB.update(id, { metadata: Object.assign({}, confirmEntry.metadata || {}, { state: 'discarded' }) });
+    } else r = await PB.remove(id);
+    // W2 (C-8): a refused undo says so and stays here -- the entry is still filed
+    if (r.error) { showSafBackOnly('undo refused (' + (r.error.message || r.error.status) + ') -- the entry is still filed'); return; }
   }
   confirmEntry = null;
   navigate('#home');
@@ -2634,7 +2607,11 @@ async function endFast() {
   var f = getActiveFast();
   if (!f) return;
   var endedAt = new Date().toISOString();
-  if (db && f.id) await PB.update(f.id, { ended_at: endedAt });
+  if (db && f.id) {
+    var r = await PB.update(f.id, { ended_at: endedAt });
+    // W2 (C-8): a refused end keeps the fast running in jf and says so
+    if (r.error) { showErr('could not end the fast (' + (r.error.message || r.error.status) + ') -- still running; retry'); autoHideErr(6000); return; }
+  }
   clearActiveFast();
   clearInterval(fastTick);
   navigate('#home');
@@ -2680,7 +2657,7 @@ function setBtnLoading(loading) {
     btn.innerHTML = 'FILING&hellip; <svg class="spinner" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/><path d="M7 2 a5 5 0 0 1 5 5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
   } else {
     btn.disabled = false;
-    btn.innerHTML = currentType === 'fast' ? (getActiveFast() ? 'END FAST' : 'START FAST') : 'LOG IT';
+    btn.innerHTML = currentType === 'signin' ? 'SIGN IN' : currentType === 'fast' ? (getActiveFast() ? 'END FAST' : 'START FAST') : 'LOG IT';
   }
 }
 
@@ -2886,7 +2863,12 @@ async function renderLogReview() {
   }
   var result = await PB.list({ sort: '-started_at', perPage: 10 });
   var countEl = document.getElementById('rv-count');
-  if (result.error || !result.data || !result.data.length) {
+  if (result.error || !result.data) {   // W2: a failed read is never shown as an empty journal
+    document.getElementById('rv-list').innerHTML = '<div class="empty-state">could not load entries &middot; ' + escHtml((result.error && result.error.message) || 'no response') + '</div>';
+    if (countEl) countEl.textContent = 'ERROR';
+    return;
+  }
+  if (!result.data.length) {
     document.getElementById('rv-list').innerHTML = '<div class="empty-state">no entries found</div>';
     if (countEl) countEl.textContent = '0 entries';
     return;

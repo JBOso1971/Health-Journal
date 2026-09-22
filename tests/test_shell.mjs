@@ -66,7 +66,9 @@ test('S3 wiring: foreground return reconnects, page hide flushes with keepalive,
   assert.match(vis, /hrScheduleReconnect\(0\)/, 'visibilitychange does not restart the reconnect loop');
   assert.match(vis, /hrStoreTickMaybe\(\)/);
   const flush = html.slice(html.indexOf('function hrFlushOnHide'), html.indexOf("document.addEventListener('freeze'"));
-  assert.match(flush, /keepalive: true/);
+  // W2: the keepalive PATCH goes through the client (its keepalive + token are proven in test_pb_client.mjs);
+  // the pre-W2 /keepalive: true/ literal here was satisfied by a COMMENT once the raw fetch moved out.
+  assert.match(flush, /\n\s*PB\.flush\(hrStore\.state\.pbId, body\);/);
   assert.match(flush, /hrSaveCheckpoint\(\)/);
   assert.match(html, /window\.addEventListener\('pagehide', hrFlushOnHide\)/);
   const sched = html.slice(html.indexOf('function hrScheduleReconnect'), html.indexOf('function hrOnData'));
@@ -117,4 +119,88 @@ test('manifest.json parses and meets Chrome\'s install criteria (found TRUNCATED
 test('the constants the app reads come from the core, not a second literal', () => {
   assert.doesNotMatch(html, /HR_STORE_TICK_SEC\s*=\s*\d+/, 'index.html defines its own tick constant');
   assert.doesNotMatch(html, /HR_STALE_SEC\s*=\s*\d+/, 'index.html defines its own stale constant');
+});
+
+// ── W2 S3: native auth (W2_Build_Brief_v1.md §2.3; the W2 gate record owns the corrections) ──────────────────
+const appJs = html.slice(html.lastIndexOf('<script>'), html.lastIndexOf('</script>'));
+const fnBody = name => { const i = html.indexOf(name); assert.ok(i > -1, 'missing: ' + name); return html.slice(i, html.indexOf('\n}\n', i)); };
+
+test('W2: pb-client.js exists, loads after hr-core.js and before the app script, and the service worker caches it', () => {
+  assert.ok(existsSync(join(ROOT, 'pb-client.js')));
+  const core = html.indexOf('<script src="hr-core.js"></script>'), pbc = html.indexOf('<script src="pb-client.js"></script>');
+  assert.ok(pbc > core && core > 0, 'pb-client.js must load after hr-core.js');
+  assert.ok(html.indexOf('<script>', pbc) > pbc, 'the app <script> must follow pb-client.js');
+  assert.match(sw, /'\/Health-Journal\/pb-client\.js'/, 'sw.js SHELL does not list pb-client.js');
+});
+
+test('W2: the app script issues no request of its own -- its one fetch( is the injection into PBClient.create', () => {
+  const sites = [...appJs.matchAll(/fetch\(/g)].length;
+  assert.equal(sites, 1, 'fetch( sites in the app script: ' + sites);
+  const create = appJs.slice(appJs.indexOf('PBClient.create('), appJs.indexOf('});', appJs.indexOf('PBClient.create(')) + 3);
+  assert.match(create, /fetch: function\(u, o\) \{ return fetch\(u, o\); \}/);
+  assert.match(create, /onAuthLost: pbAuthLost/);
+  assert.doesNotMatch(appJs, /PB_URL\s*\+\s*'\/api|\$\{PB_URL\}\/api/, 'a hand-built API URL survives outside the client');
+  assert.doesNotMatch(appJs, /const PB = \{/, 'the pre-W2 unauthenticated wrapper is back');
+});
+
+test('C-8: every PB journal call site consumes its result (the inventory is derived from the tree, not listed)', () => {
+  const sites = [...appJs.matchAll(/PB\.(list|get|insert|update|remove)\(/g)];
+  assert.ok(sites.length >= 10, 'the derived inventory collapsed: ' + sites.length);
+  const bare = sites.filter(m => {
+    const lineStart = appJs.lastIndexOf('\n', m.index) + 1;
+    return !/(=|return|\?)\s*(await\s+)?$/.test(appJs.slice(lineStart, m.index));
+  }).map(m => appJs.slice(appJs.lastIndexOf('\n', m.index) + 1, appJs.indexOf('\n', m.index)).trim());
+  assert.deepEqual(bare, [], 'result dropped at: ' + bare.join(' || '));
+});
+
+test('W2: the sign-in gate sits AFTER the capture lock and routes every signed-out view to the sign-in screen', () => {
+  const r = fnBody('function render() {');
+  const lock = r.indexOf('if (hrSessionActive)'), gate = r.indexOf('if (!PB.signedIn())'), home = r.indexOf("if (hash === '#home'");
+  assert.ok(lock > -1 && gate > lock, 'the gate must come after the capture lock (a recording is never interrupted)');
+  assert.ok(home > gate, 'the gate must come before the route dispatch');
+  const g = r.slice(gate, r.indexOf("if (hash === '#signin') { location.hash = '#home'; return; }"));
+  assert.match(g, /location\.hash = '#signin'/); assert.match(g, /renderSignIn\(\)/);
+  const lost = fnBody('function pbAuthLost(');
+  assert.match(lost, /if \(hrSessionActive\) return;/, 'auth loss must not interrupt a capture');
+  const init = html.slice(html.indexOf("window.addEventListener('DOMContentLoaded'"), html.indexOf('// \u2500\u2500 ROUTER'));
+  assert.match(init, /PB\.refresh\(\);/, 'the token is not refreshed at launch');
+});
+
+test('W2: the sign-in screen -- password field, no sign-up, the password cleared after the call and never stored', () => {
+  const v = fnBody('function renderSignIn(');
+  assert.match(v, /id="si-password" type="password" autocomplete="current-password"/);
+  assert.match(v, /id="si-email" type="email" autocomplete="username"/);
+  assert.doesNotMatch(v, /sign.?up|register|create account/i, 'there is no sign-up (users.createRule is locked)');
+  const s = fnBody('async function submitSignIn(');
+  assert.match(s, /PB\.signIn\(identity, pw\.value\)/);
+  assert.ok(s.indexOf("pw.value = ''") > s.indexOf('PB.signIn('), 'the field is not cleared after the call');
+  assert.doesNotMatch(s, /localStorage|sessionStorage/, 'submitSignIn touches storage (the client owns the token)');
+});
+
+test('Q8: the home footer carries a sign-out link, and sign-out clears the token only (drafts survive)', () => {
+  const home = fnBody('function renderHome() {');
+  assert.match(home, /id="sign-out"[^>]*onclick="signOutClick\(\);return false"/);
+  const so = fnBody('function signOutClick(');
+  assert.match(so, /PB\.signOut\(\);/);
+  assert.doesNotMatch(so, /localStorage|clear\(\)/, 'sign-out must not touch the drafts');
+  assert.match(home, /id="err-band"/, 'home has no error line: a refused END FAST would be silent');
+});
+
+test('C-8: a refused undo and a refused fast-end stay put and say so; the fast stays in jf', () => {
+  const u = fnBody('async function undoEntry(');
+  const e = u.indexOf('if (r.error)'), nav = u.indexOf("navigate('#home')");
+  assert.ok(e > -1 && e < nav, 'undo navigates home before reading the refusal');
+  assert.match(u.slice(e, u.indexOf('\n', e)), /showSafBackOnly\([^\n]*\); return; \}/);
+  assert.match(fnBody('function showSafBackOnly('), /err-band/, 'the back-only bar cannot show the refusal');
+  const f = fnBody('async function endFast(');
+  const fe = f.indexOf('if (r.error)'), clr = f.indexOf('clearActiveFast()');
+  assert.ok(fe > -1 && fe < clr, 'a refused END FAST clears jf anyway');
+  assert.match(f.slice(fe, f.indexOf('\n', fe)), /showErr\(.*return; \}/);
+});
+
+test('W2: Log Review never shows a failed read as an empty journal', () => {
+  const v = fnBody('async function renderLogReview(');
+  const err = v.slice(v.indexOf('if (result.error || !result.data)'), v.indexOf('if (!result.data.length)'));
+  assert.ok(err.length > 0, 'the error branch and the empty branch are not separate');
+  assert.match(err, /could not load entries/); assert.doesNotMatch(err, /no entries found/);
 });
