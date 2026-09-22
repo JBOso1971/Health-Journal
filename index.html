@@ -571,6 +571,7 @@
   <div class="sign-and-file" id="saf" style="display:none"></div>
 </div>
 
+<script src="hr-core.js"></script>
 <script>
 // ── CONFIG ─────────────────────────────────────────────────────────────────
 const PB_URL = 'https://journal-api.fybertech.cloud';
@@ -587,6 +588,14 @@ const PB = {
       const json = await res.json();
       if (!res.ok) return { data: null, error: json };
       return { data: json.items, error: null };
+    } catch (e) { return { data: null, error: { message: String(e) } }; }
+  },
+  async get(id) {
+    try {
+      const res  = await fetch(`${PB_URL}/api/collections/journal_entries/records/${id}`);
+      const json = await res.json();
+      if (!res.ok) return { data: null, error: json };
+      return { data: json, error: null };
     } catch (e) { return { data: null, error: { message: String(e) } }; }
   },
   async insert(record) {
@@ -691,6 +700,15 @@ let hrLastBpm       = null;   // last displayed 5-s avg (checkpoint / display co
 let hrWakeLock      = null;   // Screen Wake Lock sentinel (keeps display on during session)
 let hrCheckpointTick = null;  // 5 s localStorage checkpoint interval (A1)
 let hrReconnectTimer = null;  // BLE auto-reconnect retry timer (A1)
+// JA2: the session lives in the store from START (JA2_Build_Brief_v1.md §2.1)
+let hrSessionId     = null;   // uuid minted at START; ties the local checkpoint to the store record
+let hrStore         = null;   // HRCore.createStoreSession(PB) — pbId / lastOk / missed live in hrStore.state
+let hrStoreTickTimer = null;  // 5 s scheduler; HRCore.tickDue decides (STORE_TICK_SEC = 60, Q1)
+let hrLaunch        = null;   // HRCore.resumeDecision result from the launch query
+let hrReconnectAttempts = 0;  // A1.3 (JA2 §2.3): bounded by HRCore.RECONNECT_MAX, shown on the button
+let rvShowDiscarded = false;  // Log Review: discarded sessions hidden behind a toggle (JA2 §2.4)
+const HR_OTHER_KEY   = 'hr_session_other';      // a second unfiled local session found at launch
+const HR_DISCARD_KEY = 'hr_session_discarded';  // soft-discard slot (Q7: 7 days)
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -698,6 +716,8 @@ window.addEventListener('DOMContentLoaded', () => {
     db = true;
   }
   window.addEventListener('hashchange', render);
+  hrStore = HRCore.createStoreSession(PB);
+  hrLaunchRecovery();   // JA2: ask the store for an open session (async; re-renders home if it finds one)
   // A1: an unfinished/unlogged HR session checkpoint takes precedence —
   // land on #home so the Resume banner is visible after any reload.
   if (hrGetCheckpoint()) {
@@ -1496,69 +1516,204 @@ async function submitNote() {
 // A5 swipe-to-stop + confirm. Supersedes the v6 pause/watchdog model
 // (paused_sec) — old entries still render in Log Review.
 
-// ── CHECKPOINT (A1) ─────────────────────────────────────────────────────────
+// ── CHECKPOINT (A1; v2 since JA2) ───────────────────────────────────────────
 function hrSaveCheckpoint() {
   if (!hrStartTime) return;
   try {
-    var cp = { v: 1, started_at: hrStartTime, exercise_type: hrExerciseType,
-               samples: hrSamples, rr: hrRRBuffer, last_bpm: hrLastBpm };
+    var cp = { v: 2, started_at: hrStartTime, exercise_type: hrExerciseType,
+               samples: hrSamples, rr: hrRRBuffer, last_bpm: hrLastBpm,
+               session_id: hrSessionId, pb_id: hrStore ? hrStore.state.pbId : null,
+               missed_ticks: hrStore ? hrStore.state.missed : 0 };
     if (hrEndTime) cp.ended_at = hrEndTime;
     localStorage.setItem(HR_CKPT_KEY, JSON.stringify(cp));
-  } catch (e) { /* storage full — checkpoint is best-effort */ }
+  } catch (e) { /* storage full — checkpoint is best-effort; the store tick is the other copy */ }
 }
 function hrGetCheckpoint() {
   try {
     var cp = JSON.parse(localStorage.getItem(HR_CKPT_KEY));
-    return (cp && cp.v === 1 && cp.started_at) ? cp : null;
+    return (cp && (cp.v === 1 || cp.v === 2) && cp.started_at) ? cp : null;   // v1 = a pre-JA2 checkpoint, still honoured
   } catch (e) { return null; }
 }
 function hrClearCheckpoint() { localStorage.removeItem(HR_CKPT_KEY); }
+function hrGetSlot(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } }
+function hrFmtStart(ms) { return new Date(ms).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false }); }
 
 function hrResetState() {
   hrSessionData = null; hrStartTime = null; hrEndTime = null;
   hrSessionActive = false; hrExerciseType = null;
   hrLastPacketAt = null; hrLastBpm = null;
   hrSamples = []; hrRRBuffer = []; hrBuffer = [];
-  clearInterval(hrTimerTick); clearInterval(hrCheckpointTick);
+  hrSessionId = null; if (hrStore) hrStore.adopt(null, 0);
+  clearInterval(hrTimerTick); clearInterval(hrCheckpointTick); clearInterval(hrStoreTickTimer);
   clearTimeout(hrReconnectTimer);
   if (hrChar)   { hrChar.stopNotifications().catch(function(){}); hrChar = null; }
   if (hrDevice) { try { hrDevice.gatt.disconnect(); } catch(e){} hrDevice = null; }
   hrReleaseWakeLock();
 }
 
+// ── THE STORE-SIDE SESSION (JA2 §2.1) ───────────────────────────────────────
+// The session exists in PocketBase from START; every tick read-merge-writes the
+// samples (HRCore.createStoreSession); stop / file / discard are states. Nothing deletes.
+function hrDeviceLabel() { try { return localStorage.getItem('hr_device') || 'phone'; } catch (e) { return 'phone'; } }
+function hrMintSessionId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { var r = Math.random()*16|0; return (c === 'x' ? r : (r&0x3|0x8)).toString(16); });
+}
+function hrSnapshot() {   // what the store engine writes; the state is set by the engine
+  var stopped = !hrSessionActive && hrSessionData;
+  return { session_id: hrSessionId, device: hrDeviceLabel(), exercise_type: hrExerciseType,
+           samples: stopped ? hrSessionData.samples : hrSamples, rr: hrRRBuffer,
+           summary: stopped ? hrSessionData : null, started_ms: hrStartTime, ended_ms: hrEndTime };
+}
+function hrAdoptMerged(samples, rr) { hrSamples = samples; hrRRBuffer = rr; }
+async function hrStoreWrite(state, note) {
+  if (!db || !hrStore) return false;
+  var ok = await hrStore.write(state, hrSnapshot, note, state === 'active' ? hrAdoptMerged : null);
+  hrSaveCheckpoint();   // the checkpoint carries pb_id / missed_ticks either way
+  return ok;
+}
+function hrStoreTickMaybe() {
+  if (!hrSessionActive || !hrStore) return;
+  if (hrStore.due()) hrStoreWrite('active');
+}
+function hrStartStoreTicks() {
+  clearInterval(hrStoreTickTimer);
+  hrStoreTickTimer = setInterval(hrStoreTickMaybe, 5000);
+  hrStoreTickMaybe();
+}
+// The stop / file writes retry (the ticks are gone once the session stops).
+async function hrStoreWriteRetry(state, note, tries) {
+  for (var i = 0; i < (tries || 3); i++) {
+    if (await hrStoreWrite(state, note)) return true;
+    await new Promise(function(r) { setTimeout(r, 2000 * (i + 1)); });
+  }
+  return false;
+}
+function hrStoreStatusText() { return (!db || !hrStore) ? 'STORE: OFF' : hrStore.statusText(); }
+
+// Launch: ask the store for an open session BEFORE trusting the phone (brief §2.1 table).
+async function hrLaunchRecovery() {
+  var dsc = hrGetSlot(HR_DISCARD_KEY);   // Q7: the local discard slot expires
+  if (dsc && dsc.discarded_at && Date.now() - dsc.discarded_at > HRCore.DISCARD_KEEP_DAYS * 86400000) {
+    try { localStorage.removeItem(HR_DISCARD_KEY); } catch (e) {}
+  }
+  var storeRec = null, storeError = false;
+  if (db) {
+    var r = await PB.list({ sort: '-started_at', perPage: 5,
+      filter: 'entry_type = "heart_rate" && ended_at = "" && metadata.state = "active"' });
+    if (r.error || !r.data) storeError = true;
+    else storeRec = r.data.filter(HRCore.isOpenEntry)[0] || null;
+  } else storeError = true;
+  var local = hrGetCheckpoint();
+  hrLaunch = HRCore.resumeDecision({ store: storeRec, local: local, nowMs: Date.now(), storeError: storeError });
+  var d = hrLaunch;
+  if (d.other_local && (d.other_local.samples || []).length) {   // a different unfiled local session: kept, offered separately
+    try { localStorage.setItem(HR_OTHER_KEY, JSON.stringify(d.other_local)); } catch (e) {}
+  }
+  if (d.action === 'stale') {                                     // Q6: stopped at its last checkpoint, never resumed
+    if (d.local) {
+      var cp = d.local, lastT = (cp.samples || []).length ? cp.samples[cp.samples.length - 1].t : 0;
+      cp.ended_at = cp.started_at + (lastT + 5) * 1000; cp.pb_id = cp.pb_id || d.record.id;
+      try { localStorage.setItem(HR_CKPT_KEY, JSON.stringify(cp)); } catch (e) {}
+    } else hrSaveCheckpointFromStore(d.record, true);
+  } else if (d.action === 'resume' && d.source === 'store') hrSaveCheckpointFromStore(d.record, false);
+  if (hrSessionActive) return;                                    // a capture is already running in this window
+  if (hrGetCheckpoint() || hrGetSlot(HR_OTHER_KEY)) {
+    if (location.hash === '#home') render(); else location.hash = '#home';
+  }
+}
+function hrSaveCheckpointFromStore(rec, stale) {
+  var m = rec.metadata || {};
+  var cp = { v: 2, started_at: Date.parse(rec.started_at.replace(' ', 'T')), exercise_type: m.exercise_type || 'Cardio',
+             samples: (m.samples || []).filter(function(s) { return !s.est; }),   // J3: never re-read a synthetic point as real
+             rr: (m.rr || []).slice(), last_bpm: null,
+             session_id: m.session_id || null, pb_id: rec.id, missed_ticks: 0 };
+  if (rec.ended_at) {                                             // a stopped record keeps its own end
+    var endMs = Date.parse(String(rec.ended_at).replace(' ', 'T'));
+    cp.ended_at = isNaN(endMs) ? cp.started_at + 1000 : endMs;
+  } else if (stale) {                                             // the tail after the last checkpoint is a gap (J3)
+    var lastMs = Date.parse((m.checkpoint_at || rec.started_at).replace(' ', 'T'));
+    cp.ended_at = isNaN(lastMs) ? cp.started_at + 1000 : lastMs;
+  }
+  try { localStorage.setItem(HR_CKPT_KEY, JSON.stringify(cp)); } catch (e) {}
+}
+
 // Home-screen banner for an interrupted (reload) or unlogged (stopped, not
 // filed) session. Resume rebuilds state and continues; Discard is two-tap.
 function hrResumeBannerHTML() {
+  var html = '';
   var cp = hrGetCheckpoint();
-  if (!cp) return '';
+  if (cp) html += hrBannerFor(cp, 'primary');
+  var other = hrGetSlot(HR_OTHER_KEY);
+  if (other) html += hrBannerFor(other, 'other');
+  return html;
+}
+function hrBannerFor(cp, slot) {
   var started = new Date(cp.started_at).toLocaleString('en-US',
     { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false });
   var ended = !!cp.ended_at;
-  return '<div class="fast-banner" id="hr-resume-banner" style="border-left:3px solid var(--state-warn)">' +
+  var sum = HRCore.summarize(cp.samples || []);
+  var where = cp.pb_id ? 'in store' : 'phone only';
+  return '<div class="fast-banner" id="hr-resume-banner-' + slot + '" style="border-left:3px solid var(--state-warn)">' +
     '<span class="fast-banner__code">HE</span>' +
     '<div class="fast-banner__body">' +
       '<div class="fast-banner__type">' + (ended ? 'UNLOGGED' : 'INTERRUPTED') + ' HR SESSION &middot; ' + (cp.exercise_type || '&mdash;') + '</div>' +
-      '<div class="fast-banner__timer">started ' + started + '</div>' +
+      '<div class="fast-banner__timer">started ' + started + ' &middot; ' + sum.count + ' samples &middot; ' + where + '</div>' +
     '</div>' +
-    '<button class="fast-banner__end" style="border-color:rgba(34,197,94,.5);color:#86efac" onclick="hrResumeSession()">' + (ended ? 'REVIEW' : 'RESUME') + '</button>' +
-    '<button class="fast-banner__end" onclick="hrDiscardArm(this)">DISCARD</button>' +
+    (slot === 'primary'
+      ? '<button class="fast-banner__end" style="border-color:rgba(34,197,94,.5);color:#86efac" onclick="hrResumeSession()">' + (ended ? 'REVIEW' : 'RESUME') + '</button>'
+      : '<button class="fast-banner__end" style="border-color:rgba(34,197,94,.5);color:#86efac" onclick="hrPromoteOther()">REVIEW</button>') +
+    '<button class="fast-banner__end" onclick="hrDiscardArm(this,\'' + slot + '\')">DISCARD</button>' +
   '</div>';
 }
-
-function hrDiscardArm(btn) {   // two-tap destructive guard
-  if (btn.dataset.armed === '1') { hrDiscardSession(); return; }
-  btn.dataset.armed = '1';
-  var orig = btn.textContent;
-  btn.textContent = 'SURE?';
-  setTimeout(function() {
-    if (btn && btn.isConnected) { btn.dataset.armed = ''; btn.textContent = orig; }
-  }, 3000);
+function hrPromoteOther() {   // the second unfiled session becomes the checkpoint once the primary is gone
+  if (hrGetCheckpoint()) { showErr('Finish or discard the current session first'); autoHideErr(4000); return; }
+  var other = hrGetSlot(HR_OTHER_KEY);
+  if (!other) return;
+  if (!other.ended_at) {      // interrupted with no store copy: it stopped at its last sample (J3: the tail is not invented)
+    var lastT = (other.samples || []).length ? other.samples[other.samples.length - 1].t : 0;
+    other.ended_at = other.started_at + (lastT + 5) * 1000;
+  }
+  try { localStorage.setItem(HR_CKPT_KEY, JSON.stringify(other)); localStorage.removeItem(HR_OTHER_KEY); } catch (e) {}
+  hrResumeSession();
 }
 
-function hrDiscardSession() {
-  hrClearCheckpoint();
-  hrResetState();
+function hrDiscardArm(btn, slot) {   // two-tap destructive guard — the second tap names what is discarded (JA2 §2.2)
+  slot = slot || 'primary';
+  if (btn.dataset.armed === '1') { hrDiscardSession(slot); return; }
+  btn.dataset.armed = '1';
+  var orig = btn.textContent;
+  var cp = slot === 'other' ? hrGetSlot(HR_OTHER_KEY) : hrGetCheckpoint();
+  var elapsed = cp ? Math.floor(((cp.ended_at || Date.now()) - cp.started_at) / 1000) : 0;
+  btn.textContent = cp ? HRCore.discardLabel(cp.samples || [], elapsed) : 'SURE?';
+  setTimeout(function() {
+    if (btn && btn.isConnected) { btn.dataset.armed = ''; btn.textContent = orig; }
+  }, 4000);
+}
+
+// Soft discard (JA2 §2.2): the session moves to the discard slot locally and to
+// state "discarded" in the store. Nothing is deleted; Log Review can restore it.
+function hrDiscardSession(slot) {
+  slot = slot || 'primary';
+  var key = slot === 'other' ? HR_OTHER_KEY : HR_CKPT_KEY;
+  var cp = hrGetSlot(key);
+  if (cp) {
+    cp.discarded_at = Date.now();
+    try { localStorage.setItem(HR_DISCARD_KEY, JSON.stringify(cp)); } catch (e) {}
+    if (db && cp.pb_id) hrStoreDiscard(cp);
+  }
+  try { localStorage.removeItem(key); } catch (e) {}
+  if (slot === 'primary') hrResetState();
   if (location.hash === '#home') render(); else navigate('#home');
+}
+async function hrStoreDiscard(cp) {
+  var cur = await PB.get(cp.pb_id);
+  if (cur.error || !cur.data) return;
+  var m = Object.assign({}, cur.data.metadata || {}, { state: 'discarded', v: 2 });
+  m.samples = HRCore.mergeSamples(m.samples || [], cp.samples || []);
+  var body = { metadata: m };
+  if (!cur.data.ended_at) body.ended_at = new Date(cp.ended_at || Date.now()).toISOString();
+  await PB.update(cp.pb_id, body);
 }
 
 function hrResumeSession() {
@@ -1572,10 +1727,13 @@ function hrResumeSession() {
   hrLastBpm      = cp.last_bpm || null;
   hrLastPacketAt = null;
   hrDevice = null; hrChar = null;
+  hrSessionId    = cp.session_id || hrMintSessionId();
+  if (hrStore) hrStore.adopt(cp.pb_id || null, cp.missed_ticks || 0);
   if (cp.ended_at) {                       // stopped but never filed → report
     hrEndTime = cp.ended_at;
     hrSessionActive = false;
     hrComputeSessionData();
+    hrStoreWriteRetry('stopped');          // JA2: the store learns the stop (idempotent if it already did)
     hrNavigateHR();
   } else {                                 // interrupted mid-capture → continue
     hrEndTime = null;
@@ -1583,6 +1741,7 @@ function hrResumeSession() {
     hrSessionActive = true;
     clearInterval(hrCheckpointTick);
     hrCheckpointTick = setInterval(hrSaveCheckpoint, 5000);
+    hrStartStoreTicks();                   // JA2: first tick merges whatever the store holds
     hrRequestWakeLock();
     hrNavigateHR();
   }
@@ -1719,25 +1878,40 @@ async function hrConnect() {
 // Bluetooth needs a user gesture to re-select the device).
 async function hrManualReconnect() {
   if (!navigator.bluetooth) return;
+  hrReconnectAttempts = 0;
   try {
-    var device = await navigator.bluetooth.requestDevice({
-      filters: [{ services: ['heart_rate'] }]
-    });
+    // JA2 §2.3 / Q8: a permitted device can be re-attached WITHOUT the chooser where
+    // getDevices() exists (checked on the phone at S3); otherwise the picker as before.
+    var device = null;
+    if (typeof navigator.bluetooth.getDevices === 'function') {
+      try {
+        var known = await navigator.bluetooth.getDevices();
+        device = (known || []).filter(function(d) { return !hrDevice || d.id === hrDevice.id; })[0] || null;
+      } catch(e) { device = null; }
+    }
+    if (!device) {
+      device = await navigator.bluetooth.requestDevice({ filters: [{ services: ['heart_rate'] }] });
+    }
     hrDevice = device;
     device.addEventListener('gattserverdisconnected', hrOnDisconnect);
     await hrAttach(device);
+    hrReconnectAttempts = 0;
   } catch(e) { /* user cancelled or connect failed — ticker keeps state honest */ }
 }
 
-// Auto-reconnect loop: retained device handle, retry every few seconds while
-// the session is active. Android usually reattaches without a new picker.
+// Auto-reconnect loop (A1.3, bounded since JA2): retained device handle, retries per
+// HRCore.reconnectPolicy while the session is active; after RECONNECT_MAX the loop
+// stops and the manual button shows the count. The wall-clock timer never stops (A3).
 function hrScheduleReconnect(delayMs) {
   clearTimeout(hrReconnectTimer);
+  var plan = HRCore.reconnectPolicy(hrReconnectAttempts);
+  if (!plan.retry) return;                               // the button carries it from here
   hrReconnectTimer = setTimeout(async function() {
     if (!hrSessionActive || !hrDevice || hrChar) return;
-    try { await hrAttach(hrDevice); }
-    catch(e) { hrScheduleReconnect(4000); }
-  }, delayMs === undefined ? 3000 : delayMs);
+    hrReconnectAttempts++;
+    try { await hrAttach(hrDevice); hrReconnectAttempts = 0; }
+    catch(e) { hrScheduleReconnect(); }
+  }, delayMs === undefined ? plan.delayMs : delayMs);
 }
 
 function hrOnData(event) {
@@ -1826,6 +2000,9 @@ function hrStartExercise() {
   if (!hrExerciseType) {
     showErr('Select an exercise type first'); autoHideErr(4000); return;
   }
+  // JA2 §2.2: never start over an unfiled session — the 21 Sep loss was exactly this tap.
+  var guard = HRCore.startGuard(hrGetCheckpoint() || hrGetSlot(HR_OTHER_KEY), null, hrFmtStart);
+  if (guard) { navigate('#home'); setTimeout(function() { showErr(guard.message); autoHideErr(10000); }, 150); return; }   // shown after home re-renders
   hrStartTime    = Date.now();
   hrEndTime      = null;
   hrLastPacketAt = null;
@@ -1833,11 +2010,14 @@ function hrStartExercise() {
   hrRRBuffer     = [];
   hrSessionData  = null;
   hrSessionActive = true;
+  hrSessionId    = hrMintSessionId();
+  if (hrStore) hrStore.adopt(null, 0);
 
   hrRequestWakeLock();   // keep screen on — screen sleep suspends Web Bluetooth
   hrSaveCheckpoint();
   clearInterval(hrCheckpointTick);
   hrCheckpointTick = setInterval(hrSaveCheckpoint, 5000);   // A1: 5 s checkpoint
+  hrStartStoreTicks();                                       // JA2: the store copy — first write now, then every STORE_TICK_SEC
 
   hrRenderLockedView();
 }
@@ -1856,6 +2036,7 @@ function hrRenderLockedView() {
         '<div style="font:600 9px/1.2 var(--font-sans);letter-spacing:.18em;text-transform:uppercase;color:var(--on-navy-fg-dim)">BPM &middot; 5-SEC AVG</div>' +
         '<div id="hr-timer" style="font:400 34px/1 var(--font-mono);color:var(--on-navy-fg);margin-top:var(--s-8)">' + fmtDur(Date.now() - hrStartTime) + '</div>' +
         '<div class="hr-gap-note" id="hr-gap-note" style="display:none"></div>' +
+        '<div class="hr-gap-note" id="hr-store-status" style="color:var(--on-navy-fg-dim)">' + hrStoreStatusText() + '</div>' +
         '<button class="btn-secondary" id="hr-reconnect-btn" onclick="hrManualReconnect()" style="display:none;max-width:260px;margin-top:var(--s-9);border-color:var(--state-warn);color:var(--state-warn)">RECONNECT MONITOR</button>' +
       '</div>' +
       '<div class="hr-stop-track" id="hr-stop-track">' +
@@ -1903,8 +2084,15 @@ function hrStartLockedTicker() {
         note.style.display = '';
       } else note.style.display = 'none';
     }
+    var ss = document.getElementById('hr-store-status');   // JA2: the store copy's age, or how many ticks it missed
+    if (ss) { ss.textContent = hrStoreStatusText(); ss.style.color = (hrStore && hrStore.state.missed) ? 'var(--state-err)' : 'var(--on-navy-fg-dim)'; }
     var rb = document.getElementById('hr-reconnect-btn');
-    if (rb) rb.style.display = hrChar ? 'none' : '';
+    if (rb) {
+      rb.style.display = hrChar ? 'none' : '';
+      rb.textContent = hrReconnectAttempts >= HRCore.RECONNECT_MAX
+        ? 'RECONNECT MONITOR · auto gave up after ' + hrReconnectAttempts
+        : (hrReconnectAttempts ? 'RECONNECT MONITOR · try ' + hrReconnectAttempts + '/' + HRCore.RECONNECT_MAX : 'RECONNECT MONITOR');
+    }
     var bpmEl = document.getElementById('hr-live-bpm');
     if (bpmEl && down) bpmEl.style.color = 'var(--state-err)';
   }, 1000);
@@ -1959,10 +2147,29 @@ function hrReleaseWakeLock() {
   if (hrWakeLock) { hrWakeLock.release().catch(function(){}); hrWakeLock = null; }
 }
 
-// Wake locks auto-release when the page is hidden — reacquire on return
+// Wake locks auto-release when the page is hidden — reacquire on return. Since JA2
+// (§2.3): coming back to the foreground with the strap gone also restarts the
+// reconnect loop from attempt 0, and asks for a store tick if one is due.
 document.addEventListener('visibilitychange', function() {
-  if (document.visibilityState === 'visible' && hrSessionActive) hrRequestWakeLock();
+  if (document.visibilityState !== 'visible' || !hrSessionActive) return;
+  hrRequestWakeLock();
+  if (!hrChar && hrDevice) { hrReconnectAttempts = 0; hrScheduleReconnect(0); }
+  hrStoreTickMaybe();
 });
+// The page being torn down (a tab swipe, a new window, the OS freezing it): write the
+// checkpoint and flush the store copy with a keepalive PATCH that outlives the page.
+function hrFlushOnHide() {
+  if (!hrSessionActive) return;
+  hrSaveCheckpoint();
+  if (!db || !hrStore || !hrStore.state.pbId) return;
+  try {
+    var body = { metadata: HRCore.checkpointPayload(Object.assign(hrSnapshot(), { state: 'active' }), new Date().toISOString()) };
+    fetch(PB_URL + '/api/collections/journal_entries/records/' + hrStore.state.pbId, {
+      method: 'PATCH', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  } catch(e) { /* best effort — the next tick or the launch recovery covers it */ }
+}
+window.addEventListener('pagehide', hrFlushOnHide);
+document.addEventListener('freeze', hrFlushOnHide);
 
 // ── SESSION END + TIMELINE RESOLUTION (A3) ─────────────────────────────────
 function hrEndExercise() {
@@ -1977,6 +2184,8 @@ function hrEndExercise() {
 
   hrComputeSessionData();
   hrSaveCheckpoint();          // persists ended_at — survives reload before LOG IT
+  clearInterval(hrStoreTickTimer);
+  hrStoreWriteRetry('stopped');   // JA2: the store learns the stop; retried, never swallowed
   hrRenderReportView();
 }
 
@@ -2301,11 +2510,27 @@ async function submitHeartRate() {
   var noteEl   = document.getElementById('f-hr-note');
   var note     = noteEl ? noteEl.value.trim() || null : null;
 
-  var ok = await writeEntry('heart_rate', startISO, endISO, note, hrSessionData);
+  // JA2: a session the store already holds is FILED by a PATCH to state "filed"; one the
+  // store never saw (offline throughout) is created now, in the v2 shape.
+  var ok = (hrStore && hrStore.state.pbId)
+    ? await hrFileEntry(note)
+    : await writeEntry('heart_rate', startISO, endISO, note,
+                       HRCore.checkpointPayload(Object.assign(hrSnapshot(), { state: 'filed' }), new Date().toISOString()));
   if (!ok) return;             // write failed — keep checkpoint + state for retry
 
   hrClearCheckpoint();         // filed — checkpoint no longer needed
   hrResetState();
+}
+
+async function hrFileEntry(note) {
+  setBtnLoading(true); clearErr();
+  var ok = await hrStoreWriteRetry('filed', note, 2);
+  var rec = ok ? await PB.get(hrStore.state.pbId) : null;
+  setBtnLoading(false);
+  if (!ok || !rec || rec.error || !rec.data) { showErr('could not file to the store — the session is kept; retry'); autoHideErr(6000); return false; }
+  confirmEntry = rec.data;
+  navigate('#confirm');
+  return true;
 }
 
 // ── CONFIRM SCREEN ─────────────────────────────────────────────────────────
@@ -2362,7 +2587,8 @@ function showSafUndo(entryId, undoInterval) {
     '<div class="saf-sig"><span class="saf-sig__label">Signed by</span><span class="saf-sig__name">Self &middot; subject 01</span></div>' +
     '<div class="saf-time"><span class="saf-time__label">Filed</span><span class="saf-time__val">' + filedTime + '</span></div>' +
     '</div>' +
-    '<button class="btn-primary" style="background:rgba(220,38,38,.8)" onclick="undoEntry(\'' + entryId + '\',' + undoInterval + ')">UNDO &middot; DELETE ENTRY</button>' +
+    '<button class="btn-primary" style="background:rgba(220,38,38,.8)" onclick="undoEntry(\'' + entryId + '\',' + undoInterval + ')">' +
+      ((confirmEntry && confirmEntry.entry_type === 'heart_rate') ? 'UNDO &middot; DISCARD SESSION' : 'UNDO &middot; DELETE ENTRY') + '</button>' +
     '<button class="btn-secondary" onclick="navigate(\'#home\')">Back to Today</button>';
 }
 
@@ -2390,7 +2616,11 @@ async function writeEntry(type, startedAt, endedAt, notes, metadata) {
 
 async function undoEntry(id, intervalId) {
   clearInterval(intervalId);
-  if (db && id) await PB.remove(id);
+  if (db && id) {
+    if (confirmEntry && confirmEntry.entry_type === 'heart_rate') {   // JA2 §1.3: a session is never deleted — undo = discard (restorable in Log Review)
+      await PB.update(id, { metadata: Object.assign({}, confirmEntry.metadata || {}, { state: 'discarded' }) });
+    } else await PB.remove(id);
+  }
   confirmEntry = null;
   navigate('#home');
 }
@@ -2646,7 +2876,7 @@ async function renderLogReview() {
     '</div>' +
     '<div id="rv-list"><div class="empty-state">Loading&hellip;</div></div>' +
     '</div>' +
-    '<div class="audit-footer">&middot; tap any row to expand details</div>';
+    '<div class="audit-footer">&middot; tap any row to expand details &middot; <a href="#" style="color:inherit" onclick="rvShowDiscarded=!rvShowDiscarded;render();return false">' + (rvShowDiscarded ? 'hide' : 'show') + ' discarded sessions</a></div>';
   if (!db) {
     document.getElementById('rv-list').innerHTML = '<div class="empty-state">configure backend</div>';
     return;
@@ -2658,13 +2888,18 @@ async function renderLogReview() {
     if (countEl) countEl.textContent = '0 entries';
     return;
   }
-  var data = result.data;
+  // JA2 §2.4: discarded sessions are hidden unless asked for; in-progress / unfiled are labelled
+  var data = result.data.filter(function(e) { return rvShowDiscarded || HRCore.stateOf(e) !== 'discarded'; });
   if (countEl) countEl.textContent = data.length + (data.length === 1 ? ' entry' : ' entries');
   document.getElementById('rv-list').innerHTML = data.map(function(e, idx) {
     var m       = EMETA[e.entry_type] || { code: e.entry_type.substring(0,2).toUpperCase(), label: e.entry_type };
     var meta    = e.metadata || {};
     var timeStr = new Date(e.started_at).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false });
+    var st      = e.entry_type === 'heart_rate' ? HRCore.stateOf(e) : 'filed';
+    var stLabel = st === 'active' ? 'IN PROGRESS' : st === 'stopped' ? 'UNFILED' : st === 'discarded' ? 'DISCARDED' : '';
     var readable = formatMetaReadable(e.entry_type, meta, e.notes, e.started_at, e.ended_at);
+    if (st === 'active') readable = [{ k: 'state', v: 'in progress · ' + HRCore.summarize(meta.samples || []).count + ' samples · last store write ' + (meta.checkpoint_at ? new Date(meta.checkpoint_at).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false }) : '—') }];
+    else if (stLabel) readable.unshift({ k: 'state', v: stLabel.toLowerCase() });
     var detailRows = readable.map(function(r) {
       return '<div class="review-entry__detail-row">' +
         '<span class="review-entry__detail-key">' + r.k + '</span>' +
@@ -2677,10 +2912,12 @@ async function renderLogReview() {
       detailRows += '<div style="padding:8px 0 4px">' +
         hrBuildLineChart(meta.samples, 380, 190, meta.gaps) + '</div>';
     }
+    if (st === 'stopped')   detailRows += '<button class="btn-primary" style="margin-top:8px" onclick="event.stopPropagation();hrFileFromReview(\'' + e.id + '\')">FILE THIS SESSION</button>';
+    if (st === 'discarded') detailRows += '<button class="btn-secondary" style="margin-top:8px" onclick="event.stopPropagation();hrRestoreFromReview(\'' + e.id + '\')">RESTORE (to unfiled)</button>';
     return '<div class="review-entry" onclick="toggleReviewDetail(' + idx + ')">' +
       '<div class="review-entry__head">' +
         '<span class="review-entry__code">' + m.code + '</span>' +
-        '<span class="review-entry__label">' + m.label + '</span>' +
+        '<span class="review-entry__label">' + m.label + (stLabel ? ' &middot; ' + stLabel : '') + '</span>' +
         '<span class="review-entry__time">' + timeStr + '</span>' +
       '</div>' +
       '<div class="review-entry__detail" id="rv-detail-' + idx + '">' + detailRows + '</div>' +
@@ -2693,6 +2930,25 @@ async function renderLogReview() {
 function toggleReviewDetail(idx) {
   var el = document.getElementById('rv-detail-' + idx);
   if (el) el.classList.toggle('open');
+}
+
+// JA2 §2.4: a stopped-but-unfiled session is filed from review through the normal report
+// flow (the record becomes the checkpoint, RESUME shows the report, LOG IT patches "filed").
+async function hrFileFromReview(id) {
+  if (hrSessionActive || hrGetCheckpoint()) { showErr('Finish or discard the current session first'); autoHideErr(4000); return; }
+  var r = await PB.get(id);
+  if (r.error || !r.data) { showErr('could not load the session from the store'); autoHideErr(4000); return; }
+  hrSaveCheckpointFromStore(r.data, true);
+  hrResumeSession();
+}
+// A discarded session comes back as unfiled. Nothing is deleted in either direction.
+async function hrRestoreFromReview(id) {
+  var r = await PB.get(id);
+  if (r.error || !r.data) { showErr('could not load the session from the store'); autoHideErr(4000); return; }
+  var m = Object.assign({}, r.data.metadata || {}, { state: 'stopped', v: 2 });
+  var u = await PB.update(id, { metadata: m });
+  if (u.error) { showErr('could not restore — retry'); autoHideErr(4000); return; }
+  render();
 }
 
 // ── SERVICE WORKER ─────────────────────────────────────────────────────────
