@@ -137,6 +137,50 @@ test('resumeDecision: stale falls back to started_at when checkpoint_at is absen
   assert.throws(() => C.resumeDecision({ store: rec, local: null, nowMs: T0 }), /parsable/);
 });
 
+// The ten-instant clock sweep (G-JA2-2, owed at s13, added s14). Far-future sentinels only. The four
+// DST instants are the 2099 transitions DERIVED from Intl (America/New_York, Europe/London), not typed
+// from memory; the others are year/leap/day edges. At each instant: the stale boundary ± 1 s in both
+// timestamp spellings PocketBase and the app write, the started_at fallback, and a checkpoint that must
+// win over a much older started_at. Run once more under a DST zone (gate record): the decision is on
+// epoch ms and must not move with the process zone.
+const SWEEP = [
+  '2099-03-08T07:00:00.000Z',   // New York spring-forward
+  '2099-11-01T06:00:00.000Z',   // New York fall-back
+  '2099-03-29T01:00:00.000Z',   // London spring-forward
+  '2099-10-25T01:00:00.000Z',   // London fall-back
+  '2099-01-01T00:00:00.000Z',   // year start
+  '2098-12-31T23:59:59.999Z',   // year end, last ms
+  '2096-02-29T12:00:00.000Z',   // leap day
+  '2100-03-01T00:00:00.000Z',   // the day after 2100-02-28 (2100 is not a leap year)
+  '2099-06-15T03:00:00.000Z',   // local midnight in Brasilia (the machine zone at s14)
+  '2099-06-15T12:34:56.789Z',   // a non-round millisecond
+];
+test('resumeDecision: ten-instant clock sweep — stale boundary ± 1 s, both spellings, fallback, checkpoint beats started_at', () => {
+  const at = (nowMs, ageS, spell) => ({ id: 'rec1', entry_type: 'heart_rate', ended_at: '',
+    started_at: pb(nowMs - 10 * 86400 * 1000),                                  // ten days old: stale by started_at alone
+    metadata: { state: 'active', session_id: 'sid-1', checkpoint_at: spell(nowMs - ageS * 1000) } });
+  let checked = 0;
+  for (const when of SWEEP) {
+    const nowMs = Date.parse(when);
+    assert.equal(new Date(nowMs).toISOString(), when, `sentinel ${when} round-trips`);
+    for (const spell of [iso, pb]) {
+      const d = (ageS) => C.resumeDecision({ store: at(nowMs, ageS, spell), local: null, nowMs }).action;
+      assert.equal(d(0), 'resume', `${when} fresh`);
+      assert.equal(d(C.STALE_SEC - 1), 'resume', `${when} stale-1`);
+      assert.equal(d(C.STALE_SEC), 'resume', `${when} at the limit`);
+      assert.equal(d(C.STALE_SEC + 1), 'stale', `${when} stale+1`);
+      checked += 4;
+    }
+    const noCp = at(nowMs, 0, iso); delete noCp.metadata.checkpoint_at;
+    noCp.started_at = pb(nowMs - C.STALE_SEC * 1000);
+    assert.equal(C.resumeDecision({ store: noCp, local: null, nowMs }).action, 'resume', `${when} fallback at the limit`);
+    noCp.started_at = pb(nowMs - C.STALE_SEC * 1000 - 1000);
+    assert.equal(C.resumeDecision({ store: noCp, local: null, nowMs }).action, 'stale', `${when} fallback stale+1`);
+    checked += 2;
+  }
+  assert.equal(checked, SWEEP.length * 10);                                     // an empty sweep cannot pass
+});
+
 test('resumeDecision: store unreachable -> the local decision with offline:true, never "none" while a local exists', () => {
   const d = C.resumeDecision({ storeError: true, local: localCp(), nowMs: T0 });
   assert.equal(d.action, 'resume'); assert.equal(d.offline, true); assert.equal(d.source, 'local');

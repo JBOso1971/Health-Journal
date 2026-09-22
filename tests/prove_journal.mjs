@@ -116,6 +116,11 @@ const REGISTRY = [
     anchor: '<script src="hr-core.js"></script>',
     replacement: '<script src="hr-core.js.missing"></script>',
     must_fail: ['test_shell.mjs:hr-core.js exists and index.html loads it BEFORE the app script'] },
+  { id: 'M21-stale-from-started-at', what: 'staleness measured from started_at although a checkpoint exists -> any session longer than 6 h, or resumed late, reads stale and is never resumed',
+    file: 'hr-core.js',
+    anchor: "      var lastMs = parseMs(m.checkpoint_at) || parseMs(store.started_at);\n",
+    replacement: "      var lastMs = parseMs(store.started_at) || parseMs(m.checkpoint_at);\n",
+    must_fail: ['test_hr_core.mjs:resumeDecision: ten-instant clock sweep — stale boundary ± 1 s, both spellings, fallback, checkpoint beats started_at'] },
 ];
 
 function checkRegistry(reg, discovered) {
