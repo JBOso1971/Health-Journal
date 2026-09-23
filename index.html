@@ -694,7 +694,11 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── ROUTER ─────────────────────────────────────────────────────────────────
-function navigate(hash) { location.hash = hash; }
+function navigate(hash) {
+  // an unchanged hash fires no hashchange: render directly, or the screen goes stale (s20: END FAST on home ended
+  // the fast but left the banner up until a reload). Four callers had worked around this by hand; this is the one site.
+  if (location.hash === hash) render(); else location.hash = hash;
+}
 
 function render() {
   const hash = location.hash || '#home';

@@ -237,6 +237,11 @@ const REGISTRY = [
     anchor: "'/Health-Journal/pb-client.js', ",
     replacement: "",
     must_fail: ["test_shell.mjs:W2: pb-client.js exists, loads after hr-core.js and before the app script, and the service worker caches it"] },
+  { id: "S20-navigate-same-hash-stale", what: "navigate only sets the hash -> an unchanged hash fires no hashchange and the screen goes stale (END FAST on home, found on the phone s20)",
+    file: "index.html",
+    anchor: "  if (location.hash === hash) render(); else location.hash = hash;\n",
+    replacement: "  location.hash = hash;\n",
+    must_fail: ["test_shell.mjs:navigate re-renders when the hash is unchanged (s20: END FAST on home left the banner up until a reload)"] },
 ];
 
 function checkRegistry(reg, discovered) {

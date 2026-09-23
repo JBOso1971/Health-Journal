@@ -204,3 +204,19 @@ test('W2: Log Review never shows a failed read as an empty journal', () => {
   assert.ok(err.length > 0, 'the error branch and the empty branch are not separate');
   assert.match(err, /could not load entries/); assert.doesNotMatch(err, /no entries found/);
 });
+
+test('navigate re-renders when the hash is unchanged (s20: END FAST on home left the banner up until a reload)', () => {
+  // runs the REAL function from index.html against a fake location: an unchanged hash fires no hashchange, so
+  // navigate must render itself; a changed hash must NOT render here (hashchange does -- two renders otherwise)
+  const nav = src => new Function('location', 'render', src + '\n}\nreturn navigate;');   // fnBody stops before the closing brace
+  const src = fnBody('function navigate(');
+  for (const [from, to, renders] of [['#home', '#home', 1], ['#home', '#review', 0], ['#confirm', '#home', 0]]) {
+    const loc = { hash: from }; let n = 0;
+    nav(src)(loc, () => { n++; })(to);
+    assert.equal(n, renders, `navigate('${to}') from ${from}: ${n} render(s), want ${renders}`);
+    assert.equal(loc.hash, to);
+  }
+  // and END FAST, the site found on the phone, still reaches home through navigate after clearing the fast
+  const f = fnBody('async function endFast(');
+  assert.ok(f.indexOf('clearActiveFast()') < f.indexOf("navigate('#home')"), 'END FAST must clear jf, then navigate home');
+});
