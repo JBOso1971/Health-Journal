@@ -561,6 +561,74 @@
     .review-entry__detail-key { color: var(--ink-muted); }
     .review-entry__detail-val { color: var(--ink); word-break: break-word; }
 
+    /* ── LIFT (W3b; built from W3b_Mock/index.html, its classes copied) ── */
+    .ask { background: var(--accent-tint); border-left: 3px solid var(--accent); padding: var(--s-6) var(--s-9); font: 400 12px/1.5 var(--font-sans); color: var(--ink); }
+    .ask b { font-weight: 600; }
+    .link-btn { background: none; border: none; font: 400 11px/1 var(--font-mono); color: var(--accent); cursor: pointer; padding: 10px 4px; }
+    .btn-light {
+      padding: 10px 12px; background: #fff; color: var(--accent); border: 1px solid var(--paper-line); border-radius: var(--r-1);
+      font: 600 10.5px/1 var(--font-sans); letter-spacing: .14em; text-transform: uppercase; cursor: pointer;
+    }
+    .btn-light:active { background: var(--paper-edge); }
+    .btn-light:disabled { color: var(--ink-muted); cursor: not-allowed; }
+    .hr-strip {
+      position: sticky; top: 0; z-index: 25; background: var(--navy-dark); border-bottom: 1px solid var(--accent);
+      display: grid; grid-template-columns: auto 1fr auto; align-items: center; column-gap: var(--s-7); padding: var(--s-6) var(--s-9);
+      padding-top: max(env(safe-area-inset-top, 0px), var(--s-6));
+    }
+    .hr-strip__bpm { font: 400 34px/1 var(--font-mono); letter-spacing: .04em; min-width: 66px; background: none; border: none; text-align: left; padding: 0; cursor: pointer; }
+    .hr-strip__mid { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .hr-strip__name { font: 600 13px/1.2 var(--font-serif); color: var(--on-navy-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hr-strip__sub { font: 400 10.5px/1.2 var(--font-mono); color: var(--on-navy-fg-dim); }
+    .hr-strip__timer { font: 400 17px/1 var(--font-mono); color: var(--on-navy-fg); text-align: right; }
+    .hr-strip__store { font: 400 9.5px/1.2 var(--font-mono); color: var(--on-navy-fg-dim); text-align: right; margin-top: 4px; }
+    .hr-strip__row { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--s-5); flex-wrap: wrap; }
+    .ex-tag { font: 400 9.5px/1 var(--font-mono); letter-spacing: .12em; color: var(--ink-dim); border: 1px solid var(--paper-line); padding: 2px 5px; background: #fff; white-space: nowrap; }
+    .ex-tag--uni { color: var(--accent); border-color: rgba(42,100,150,.35); }
+    .set-row {
+      display: grid; grid-template-columns: 46px 62px 14px 70px 1fr 44px; align-items: center; column-gap: var(--s-3);
+      padding: var(--s-4) var(--s-9); background: #fff; border-bottom: var(--rule-solid); min-height: 54px;
+    }
+    .set-row__no { font: 400 11px/1 var(--font-mono); color: var(--ink-dim); }
+    .set-from { display: block; margin-top: 3px; font: 400 9px/1.2 var(--font-mono); letter-spacing: .04em; color: var(--state-warn); }
+    .set-row__x { font: 400 13px/1 var(--font-mono); color: var(--ink-dim); text-align: center; }
+    .set-in {
+      width: 100%; border: none; border-bottom: var(--rule-dotted); background: transparent; outline: none; padding: 6px 2px 4px;
+      font: 400 20px/1.1 var(--font-serif); color: var(--ink); text-align: right;
+    }
+    .set-in:focus { border-bottom: 1px solid var(--accent); }
+    .set-in[aria-invalid="true"] { border-bottom: 1px solid var(--state-err); color: var(--state-err); }
+    .set-unit { font: 400 10px/1.2 var(--font-mono); color: var(--ink-dim); padding-left: 4px; }
+    .set-note { display: block; font: 400 9px/1.2 var(--font-mono); letter-spacing: .1em; color: var(--state-warn); padding-left: 4px; margin-top: 2px; }
+    .set-check {
+      width: 40px; height: 40px; justify-self: end; display: inline-grid; place-items: center; border: 1.5px solid var(--paper-line); background: #fff;
+      cursor: pointer; font: 700 18px/1 var(--font-sans); color: transparent;
+    }
+    .set-row--sugg { background: var(--paper-2); }
+    .set-row--sugg .set-in { color: var(--ink-muted); font-style: italic; }
+    .set-row--done .set-check { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .ex-foot { display: flex; gap: var(--s-5); padding: var(--s-6) var(--s-9); background: var(--paper); }
+    .ex-foot__vol { margin-left: auto; align-self: center; font: 400 10.5px/1.2 var(--font-mono); color: var(--ink-dim); text-align: right; }
+    .tl-row {
+      display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: var(--s-5); padding: var(--s-5) var(--s-9);
+      background: #fff; border-bottom: var(--rule-solid);
+    }
+    .tl-row__name { font: 400 16px/1.35 var(--font-serif); color: var(--ink); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .tl-row__btns { display: flex; gap: 2px; }
+    .ico { width: 36px; height: 36px; border: 1px solid var(--paper-line); background: var(--paper-2); color: var(--ink-dim); font: 400 14px/1 var(--font-mono); cursor: pointer; }
+    .ico:disabled { opacity: .35; cursor: default; }
+    .kt-wrap { overflow-x: auto; background: #fff; }
+    table.kt { border-collapse: collapse; width: 100%; font: 400 11px/1.3 var(--font-mono); color: var(--ink); }
+    table.kt th { text-align: left; font: 600 9px/1.2 var(--font-sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-dim); padding: 6px 8px; border-bottom: var(--rule-solid); background: var(--paper-2); white-space: nowrap; }
+    table.kt td { padding: 6px 8px; border-bottom: var(--rule-solid); white-space: nowrap; }
+    table.kt td.num { text-align: right; }
+    table.kt tr.skip td { color: var(--ink-muted); }
+    .overlay { position: fixed; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: rgba(10,22,35,.9); z-index: 50; display: flex; align-items: center; justify-content: center; padding: var(--s-11); }
+    .overlay__box { width: 100%; max-width: 430px; background: var(--navy-mid); border: 1px solid var(--accent); padding: var(--s-11); }
+    .overlay__title { font: 500 20px/1.2 var(--font-serif); color: var(--on-navy-fg); text-align: center; margin-bottom: var(--s-8); }
+    .overlay__text { font: 400 12px/1.6 var(--font-mono); color: var(--on-navy-fg-dim); margin-bottom: var(--s-10); }
+    .overlay__text b { color: var(--state-warn); font-weight: 500; }
+
   </style>
 </head>
 <body>
@@ -570,8 +638,10 @@
   </div>
   <div class="sign-and-file" id="saf" style="display:none"></div>
 </div>
+<div id="lift-overlay"></div>
 
 <script src="hr-core.js"></script>
+<script src="lift-core.js"></script>
 <script src="pb-client.js"></script>
 <script>
 // ── CONFIG ─────────────────────────────────────────────────────────────────
@@ -587,6 +657,7 @@ const PB = PBClient.create({ url: PB_URL, fetch: function(u, o) { return fetch(u
 // never interrupted (its store ticks count as missed; the local checkpoint carries on).
 function pbAuthLost() {
   if (hrSessionActive) return;
+  if (liftRunning) return;              // W3b: nor is a running Lift session (its writes count as missed; the local copy carries on)
   if (location.hash !== '#signin') location.hash = '#signin';
 }
 
@@ -608,6 +679,7 @@ const SUPS = [
 
 // ── ENTRY META ─────────────────────────────────────────────────────────────
 const EMETA = {
+  resistance: { code:'LI', label:'Lift',             sub:'resistance session · sets R × W' },   // W3b (D-57); first, as the mock
   heart_rate: { code:'HE', label:'Heart Rate',       sub:'cardio · BLE monitor'  },
   fast:       { code:'FA', label:'Fast',             sub:'fasting window log'    },
   supplement: { code:'SU', label:'Supplements',      sub:'daily stack admin.'    },
@@ -672,6 +744,26 @@ let hrReconnectAttempts = 0;  // A1.3 (JA2 §2.3): bounded by HRCore.RECONNECT_M
 let rvShowDiscarded = false;  // Log Review: discarded sessions hidden behind a toggle (JA2 §2.4)
 const HR_OTHER_KEY   = 'hr_session_other';      // a second unfiled local session found at launch
 const HR_DISCARD_KEY = 'hr_session_discarded';  // soft-discard slot (Q7: 7 days)
+let hrLiftSessionId = null;   // W3b (Q3 (c), L15): the Lift session_id a strap session started from Lift carries
+
+// ── LIFT STATE (W3b; the rules live in lift-core.js, this script only wires them) ──
+const LIFT_KEY          = 'lift_session';            // the active Lift session's local copy (brief §1.3), LiftCore's shape
+const LIFT_DISCARD_KEY  = 'lift_session_discarded';  // soft-discard slot, the HR pattern
+const LIFT_TPL_CACHE    = 'lift_templates_cache';    // the picker's last good store read, so no signal at the gym still lists templates (Q5)
+let liftRunning   = false;   // a Lift session runs in THIS window: the route lock (L19) holds
+let liftSession   = null;    // the running session, LiftCore's local-copy shape { v, session_id, started_at, ended_at?, pb_id, missed, meta }
+let liftStore     = null;    // LiftCore.createLiftStoreSession(PB)
+let liftTickTimer = null;    // 1 s: the strip, the HR link, a due store write (L18)
+let liftRetryTimer = null;   // a finished Lift session the store refused is retried while the app is open (L20)
+let liftTemplates = null;    // lift_template records (store, else the cache)
+let liftHistory   = [];      // filed resistance records (pre-fill, L5; "last …" in the picker)
+let liftHistoryOk = false;   // the history read succeeded (else pre-fill is absent: "no signal")
+let liftTodayHr   = null;    // today's heart_rate records, for LINK (L15)
+let liftPick      = { tplId: null, hrMode: 'strap', hrLink: null };   // the mock's defaults (D-60)
+let liftEditTpl   = null;    // the template editor's draft
+let liftNewLat    = 'both';  // BILATERAL / UNILATERAL chips
+let liftLastFiled = null;    // the outcome of the last FINISH (confirm screen + undo, §3 Q2)
+let liftFiling    = false;   // FINISH in flight: a second tap does nothing
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -681,10 +773,12 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('hashchange', render);
   PB.refresh();         // W2: extend the token on every launch; a refusal routes to sign-in, offline keeps it
   hrStore = HRCore.createStoreSession(PB);
+  liftStore = LiftCore.createLiftStoreSession(PB, { now: function() { return Date.now(); } });
   hrLaunchRecovery();   // JA2: ask the store for an open session (async; re-renders home if it finds one)
+  liftLaunchRecovery(); // W3b: the same for a Lift session (the store first, then the phone)
   // A1: an unfinished/unlogged HR session checkpoint takes precedence —
   // land on #home so the Resume banner is visible after any reload.
-  if (hrGetCheckpoint()) {
+  if (hrGetCheckpoint() || liftGetLocal()) {
     if (location.hash === '#home') render();
     else location.hash = '#home';
     return;
@@ -702,6 +796,15 @@ function navigate(hash) {
 
 function render() {
   const hash = location.hash || '#home';
+  // L19 (W3b): a running Lift session locks the app to the Lift screen; with the strap linked the HR
+  // view is admitted too, and only it. Before the HR lock (A4), which would otherwise pull a strap
+  // Lift session onto the HR capture view, and before the sign-in gate (never interrupted by it).
+  if (liftRunning) {
+    const to = LiftCore.lockRoute(hash, { lift: true, strap: liftStrapLinked() });
+    if (to) { location.hash = to; return; }
+    liftRenderLocked(hash);
+    return;
+  }
   // A4: an active capture session locks the app to the capture view —
   // back button / hash edits / stray navigation cannot kill a recording.
   if (hrSessionActive) {
@@ -712,8 +815,12 @@ function render() {
   // No active session: tear down BLE + timers when navigating.
   // NOTE: do NOT clear hrSamples/hrBuffer/hrRRBuffer/hrSessionData here —
   // submitHeartRate() clears them after a successful write.
-  if (hrChar)   { hrChar.stopNotifications().catch(function(){}); hrChar = null; }
-  if (hrDevice) { try { hrDevice.gatt.disconnect(); } catch(e){} hrDevice = null; }
+  // W3b (D-60 (2)): a strap connected on the Lift screen stays connected across the Lift pick screen
+  // and the template editor; every other route releases it, as before.
+  if (!liftKeepsStrap(hash)) {
+    if (hrChar)   { hrChar.stopNotifications().catch(function(){}); hrChar = null; }
+    if (hrDevice) { try { hrDevice.gatt.disconnect(); } catch(e){} hrDevice = null; }
+  }
   clearInterval(hrTimerTick);
   clearInterval(hrCheckpointTick);
   clearTimeout(hrReconnectTimer);
@@ -744,6 +851,9 @@ function render() {
   } else if (hash === '#review') {
     scroll.classList.remove('scroll--nofooter');
     renderLogReview();
+  } else if (hash.startsWith('#lift/tpl/')) {
+    scroll.classList.remove('scroll--nofooter');
+    liftRenderTemplate(decodeURIComponent(hash.slice('#lift/tpl/'.length)));
   } else {
     scroll.classList.add('scroll--nofooter');
     renderHome();
@@ -780,6 +890,7 @@ function renderHome() {
     </div>` : ''}
     <div class="err-band" id="err-band"></div>
 
+    ${liftBannerHTML()}
     ${hrResumeBannerHTML()}
 
     <div class="section">
@@ -888,6 +999,7 @@ function renderForm(type) {
   const meta = EMETA[type];
   if (!meta) { navigate('#home'); return; }
   switch (type) {
+    case 'resistance': liftRenderPick(meta);      break;   // W3b; a RUNNING session is render()'s lock branch
     case 'heart_rate':
       if (hrSessionData) hrRenderReportView();   // stopped-but-unfiled → report
       else buildHeartRateForm(meta);
@@ -903,7 +1015,7 @@ function renderForm(type) {
     case 'note':       buildNoteForm(meta);       break;
     default: navigate('#home');
   }
-  if (type === 'heart_rate') return;   // HR views manage their own footer (LOG IT only post-session)
+  if (type === 'heart_rate' || type === 'resistance') return;   // HR and Lift views manage their own footer
   showSaf(type === 'fast' ? (getActiveFast() ? 'END FAST' : 'START FAST') : 'LOG IT');
 }
 
@@ -1497,6 +1609,7 @@ function hrSaveCheckpoint() {
                session_id: hrSessionId, pb_id: hrStore ? hrStore.state.pbId : null,
                missed_ticks: hrStore ? hrStore.state.missed : 0 };
     if (hrEndTime) cp.ended_at = hrEndTime;
+    if (hrLiftSessionId) cp.lift_session_id = hrLiftSessionId;   // W3b: LiftCore.pairDecision reads it at launch
     localStorage.setItem(HR_CKPT_KEY, JSON.stringify(cp));
   } catch (e) { /* storage full — checkpoint is best-effort; the store tick is the other copy */ }
 }
@@ -1515,7 +1628,7 @@ function hrResetState() {
   hrSessionActive = false; hrExerciseType = null;
   hrLastPacketAt = null; hrLastBpm = null;
   hrSamples = []; hrRRBuffer = []; hrBuffer = [];
-  hrSessionId = null; if (hrStore) hrStore.adopt(null, 0);
+  hrSessionId = null; hrLiftSessionId = null; if (hrStore) hrStore.adopt(null, 0);
   clearInterval(hrTimerTick); clearInterval(hrCheckpointTick); clearInterval(hrStoreTickTimer);
   clearTimeout(hrReconnectTimer);
   if (hrChar)   { hrChar.stopNotifications().catch(function(){}); hrChar = null; }
@@ -1535,7 +1648,8 @@ function hrSnapshot() {   // what the store engine writes; the state is set by t
   var stopped = !hrSessionActive && hrSessionData;
   return { session_id: hrSessionId, device: hrDeviceLabel(), exercise_type: hrExerciseType,
            samples: stopped ? hrSessionData.samples : hrSamples, rr: hrRRBuffer,
-           summary: stopped ? hrSessionData : null, started_ms: hrStartTime, ended_ms: hrEndTime };
+           summary: stopped ? hrSessionData : null, started_ms: hrStartTime, ended_ms: hrEndTime,
+           lift_session_id: hrLiftSessionId };   // W3b (L15): null on every HR session not started from Lift, and then absent from the store
 }
 function hrAdoptMerged(samples, rr) { hrSamples = samples; hrRRBuffer = rr; }
 async function hrStoreWrite(state, note) {
@@ -1600,6 +1714,7 @@ function hrSaveCheckpointFromStore(rec, stale) {
              samples: (m.samples || []).filter(function(s) { return !s.est; }),   // J3: never re-read a synthetic point as real
              rr: (m.rr || []).slice(), last_bpm: null,
              session_id: m.session_id || null, pb_id: rec.id, missed_ticks: 0 };
+  if (m.lift_session_id) cp.lift_session_id = m.lift_session_id;   // W3b: the Lift session it belongs to survives a store-side resume
   if (rec.ended_at) {                                             // a stopped record keeps its own end
     var endMs = Date.parse(String(rec.ended_at).replace(' ', 'T'));
     cp.ended_at = isNaN(endMs) ? cp.started_at + 1000 : endMs;
@@ -1615,7 +1730,7 @@ function hrSaveCheckpointFromStore(rec, stale) {
 function hrResumeBannerHTML() {
   var html = '';
   var cp = hrGetCheckpoint();
-  if (cp) html += hrBannerFor(cp, 'primary');
+  if (cp && !liftPairsHr()) html += hrBannerFor(cp, 'primary');   // W3b: an HR session its Lift session names rides the Lift banner (one RESUME)
   var other = hrGetSlot(HR_OTHER_KEY);
   if (other) html += hrBannerFor(other, 'other');
   return html;
@@ -1691,8 +1806,13 @@ async function hrStoreDiscard(cp) {
 }
 
 function hrResumeSession() {
+  if (hrResumeState()) hrNavigateHR();
+}
+// The state half of a resume (W3b: a Lift RESUME resumes its HR session too, then shows the Lift screen).
+function hrResumeState() {
   var cp = hrGetCheckpoint();
-  if (!cp) return;
+  if (!cp) return null;
+  hrLiftSessionId = cp.lift_session_id || null;
   hrStartTime    = cp.started_at;
   hrExerciseType = cp.exercise_type || 'Cardio';
   hrSamples      = (cp.samples || []).slice();
@@ -1708,7 +1828,6 @@ function hrResumeSession() {
     hrSessionActive = false;
     hrComputeSessionData();
     hrStoreWriteRetry('stopped');          // JA2: the store learns the stop (idempotent if it already did)
-    hrNavigateHR();
   } else {                                 // interrupted mid-capture → continue
     hrEndTime = null;
     hrSessionData = null;
@@ -1717,8 +1836,8 @@ function hrResumeSession() {
     hrCheckpointTick = setInterval(hrSaveCheckpoint, 5000);
     hrStartStoreTicks();                   // JA2: first tick merges whatever the store holds
     hrRequestWakeLock();
-    hrNavigateHR();
   }
+  return cp;
 }
 
 function hrNavigateHR() {
@@ -1956,7 +2075,7 @@ function updateHRConnectState(state) {
 
   if (state === 'idle') {
     if (statusEl)   { statusEl.textContent = '● NOT CONNECTED'; statusEl.style.color = 'var(--state-err)'; }
-    if (connectBtn) { connectBtn.textContent = 'CONNECT MONITOR'; connectBtn.disabled = false; }
+    if (connectBtn) { connectBtn.textContent = connectBtn.dataset.idleLabel || 'CONNECT MONITOR'; connectBtn.disabled = false; }
     if (displayEl)  { displayEl.textContent = '---'; displayEl.style.color = 'var(--state-err)'; }
   } else if (state === 'connected') {
     if (statusEl)   { statusEl.textContent = '● CONNECTED'; statusEl.style.color = 'var(--state-ok)'; }
@@ -1964,6 +2083,7 @@ function updateHRConnectState(state) {
     if (displayEl)  { displayEl.style.color = 'var(--state-ok)'; }
   }
   hrUpdateStartGate();
+  liftUpdateStartGate();   // W3b (L17): the Lift START waits on the same connection
 }
 
 // ── SESSION START + LOCKED CAPTURE VIEW (A4) ───────────────────────────────
@@ -1977,6 +2097,12 @@ function hrStartExercise() {
   // JA2 §2.2: never start over an unfiled session — the 21 Sep loss was exactly this tap.
   var guard = HRCore.startGuard(hrGetCheckpoint() || hrGetSlot(HR_OTHER_KEY), null, hrFmtStart);
   if (guard) { navigate('#home'); setTimeout(function() { showErr(guard.message); autoHideErr(10000); }, 150); return; }   // shown after home re-renders
+  hrBeginCapture(null);
+  hrRenderLockedView();
+}
+// The capture's start, shared by the HR screen and the Lift START (W3b, L17: ONE capture path; the
+// Lift session's id rides the HR session from START, Q3 (c)). The caller has run its START guard.
+function hrBeginCapture(liftSessionId) {
   hrStartTime    = Date.now();
   hrEndTime      = null;
   hrLastPacketAt = null;
@@ -1985,6 +2111,7 @@ function hrStartExercise() {
   hrSessionData  = null;
   hrSessionActive = true;
   hrSessionId    = hrMintSessionId();
+  hrLiftSessionId = liftSessionId || null;
   if (hrStore) hrStore.adopt(null, 0);
 
   hrRequestWakeLock();   // keep screen on — screen sleep suspends Web Bluetooth
@@ -1992,17 +2119,16 @@ function hrStartExercise() {
   clearInterval(hrCheckpointTick);
   hrCheckpointTick = setInterval(hrSaveCheckpoint, 5000);   // A1: 5 s checkpoint
   hrStartStoreTicks();                                       // JA2: the store copy — first write now, then every STORE_TICK_SEC
-
-  hrRenderLockedView();
 }
 
 function hrRenderLockedView() {
   hideSaf();
+  var linked = liftLinkedHr();   // W3b: a strap session started from Lift stops and files with it (FINISH on the Lift screen), never here
   var app = document.getElementById('app');
   app.innerHTML =
     '<div class="hr-locked" id="hr-locked">' +
       '<div class="hr-locked__head">' +
-        '<span class="header-eyebrow">ACTIVE SESSION &middot; ' + (hrExerciseType || '').toUpperCase() + '</span>' +
+        '<span class="header-eyebrow">ACTIVE SESSION &middot; ' + (hrExerciseType || '').toUpperCase() + (linked ? ' &middot; LIFT' : '') + '</span>' +
         '<span class="hr-locked__status" id="hr-ble-status">&#9679; CONNECTED</span>' +
       '</div>' +
       '<div class="hr-locked__main">' +
@@ -2013,10 +2139,15 @@ function hrRenderLockedView() {
         '<div class="hr-gap-note" id="hr-store-status" style="color:var(--on-navy-fg-dim)">' + hrStoreStatusText() + '</div>' +
         '<button class="btn-secondary" id="hr-reconnect-btn" onclick="hrManualReconnect()" style="display:none;max-width:260px;margin-top:var(--s-9);border-color:var(--state-warn);color:var(--state-warn)">RECONNECT MONITOR</button>' +
       '</div>' +
-      '<div class="hr-stop-track" id="hr-stop-track">' +
-        '<span class="hr-stop-track__label">&larr; SLIDE TO STOP</span>' +
-        '<div class="hr-stop-handle" id="hr-stop-handle">&#10073;&#10073;</div>' +
-      '</div>' +
+      (linked
+        ? '<div style="margin:0 var(--s-9) calc(var(--s-11) + env(safe-area-inset-bottom, 0px))">' +
+            '<button class="btn-primary" id="hr-back-to-lift" onclick="navigate(\'#log/resistance\')">&lsaquo; BACK TO LIFT</button>' +
+            '<div class="hr-gap-note" style="color:var(--on-navy-fg-dim);text-align:center">stops and files with the Lift session: FINISH &amp; FILE there</div>' +
+          '</div>'
+        : '<div class="hr-stop-track" id="hr-stop-track">' +
+            '<span class="hr-stop-track__label">&larr; SLIDE TO STOP</span>' +
+            '<div class="hr-stop-handle" id="hr-stop-handle">&#10073;&#10073;</div>' +
+          '</div>') +
     '</div>' +
     '<div class="hr-confirm-overlay" id="hr-confirm-overlay" style="display:none">' +
       '<div class="hr-confirm-box">' +
@@ -2147,6 +2278,11 @@ document.addEventListener('freeze', hrFlushOnHide);
 // ── SESSION END + TIMELINE RESOLUTION (A3) ─────────────────────────────────
 function hrEndExercise() {
   if (!hrStartTime) { showErr('No active session'); return; }
+  hrStopCapture();
+  hrRenderReportView();
+}
+// The stop, shared with the Lift FINISH (W3b, L20), which files the session itself and shows no report.
+function hrStopCapture() {
   hrEndTime = Date.now();
   hrSessionActive = false;
   clearInterval(hrTimerTick);
@@ -2159,7 +2295,6 @@ function hrEndExercise() {
   hrSaveCheckpoint();          // persists ended_at — survives reload before LOG IT
   clearInterval(hrStoreTickTimer);
   hrStoreWriteRetry('stopped');   // JA2: the store learns the stop; retried, never swallowed
-  hrRenderReportView();
 }
 
 function hrComputeSessionData() {
@@ -2334,8 +2469,9 @@ function hrRenderReportView() {
       '</div>' +
     '</div>' +
     '<div class="audit-footer">' +
-      '<button class="fast-banner__end" style="margin-bottom:8px" onclick="hrDiscardArm(this)">DISCARD SESSION</button><br>' +
-      '&middot; session held locally until filed &mdash; LOG IT writes to pocketbase' +
+      (liftLinkedHr() ? '&middot; this strap session belongs to the running Lift session: FINISH &amp; FILE there files both'
+        : '<button class="fast-banner__end" style="margin-bottom:8px" onclick="hrDiscardArm(this)">DISCARD SESSION</button><br>' +
+          '&middot; session held locally until filed &mdash; LOG IT writes to pocketbase') +
     '</div>';
 
   var noteEl = document.getElementById('f-hr-note');
@@ -2343,6 +2479,11 @@ function hrRenderReportView() {
     document.getElementById('f-hr-nc').textContent = this.value.length + ' / 500 char';
   });
   currentType   = 'heart_rate';
+  if (liftLinkedHr()) {          // W3b (brief S4 (ii)): the Lift FINISH files this session; it has no LOG IT of its own
+    currentSubmit = function() { navigate('#log/resistance'); };
+    showSaf('&lsaquo; BACK TO LIFT');
+    return;
+  }
   currentSubmit = submitHeartRate;
   showSaf('LOG IT');
 }
@@ -2531,13 +2672,17 @@ function renderConfirm() {
     '<div class="confirm-row"><span class="confirm-row__key">started at</span><span class="confirm-row__val">' + new Date(e.started_at).toLocaleString() + '</span></div>' +
     (e.ended_at ? '<div class="confirm-row"><span class="confirm-row__key">ended at</span><span class="confirm-row__val">' + new Date(e.ended_at).toLocaleString() + '</span></div>' : '') +
     (e.notes ? '<div class="confirm-row"><span class="confirm-row__key">notes</span><span class="confirm-row__val">' + e.notes + '</span></div>' : '') +
-    '<div class="confirm-row"><span class="confirm-row__key">metadata</span><span class="confirm-row__val" style="font-size:11px;font-family:var(--font-mono)">' + JSON.stringify(m).substring(0, 140) + '&hellip;</span></div>' +
-    '</div>' +
+    (e.entry_type === LiftCore.ENTRY_TYPE ? liftConfirmHTML(e)   // W3b: the filed session in words, both filing outcomes, the sets as filed
+      : '<div class="confirm-row"><span class="confirm-row__key">metadata</span><span class="confirm-row__val" style="font-size:11px;font-family:var(--font-mono)">' + JSON.stringify(m).substring(0, 140) + '&hellip;</span></div>' +
+    '</div>') +
     '<div class="audit-footer">&middot; written to pocketbase &middot; journal_entries<br>&middot; subject 01 &middot; ' + new Date().toISOString().substring(0,10) + '<br><span class="ok">+</span> sync to health.db at 07:00 daily</div>';
 
   var undoInterval = setInterval(function() {
     undoSec--;
     var txt = document.getElementById('undo-txt');
+    // s31: the confirm screen is gone (Back to Today, a new session): the countdown ends here and never touches
+    // the footer of the screen now showing -- it replaced a running Lift session's FINISH & FILE (found rendering W3b S4)
+    if (!txt) { clearInterval(undoInterval); return; }
     if (undoSec <= 0) {
       clearInterval(undoInterval);
       if (txt) txt.textContent = 'FILED';
@@ -2561,7 +2706,7 @@ function showSafUndo(entryId, undoInterval) {
     '<div class="saf-time"><span class="saf-time__label">Filed</span><span class="saf-time__val">' + filedTime + '</span></div>' +
     '</div>' +
     '<button class="btn-primary" style="background:rgba(220,38,38,.8)" onclick="undoEntry(\'' + entryId + '\',' + undoInterval + ')">' +
-      ((confirmEntry && confirmEntry.entry_type === 'heart_rate') ? 'UNDO &middot; DISCARD SESSION' : 'UNDO &middot; DELETE ENTRY') + '</button>' +
+      ((confirmEntry && (confirmEntry.entry_type === 'heart_rate' || confirmEntry.entry_type === LiftCore.ENTRY_TYPE)) ? 'UNDO &middot; DISCARD SESSION' : 'UNDO &middot; DELETE ENTRY') + '</button>' +
     '<button class="btn-secondary" onclick="navigate(\'#home\')">Back to Today</button>';
 }
 
@@ -2594,6 +2739,9 @@ async function undoEntry(id, intervalId) {
     var r;
     if (confirmEntry && confirmEntry.entry_type === 'heart_rate') {   // JA2 §1.3: a session is never deleted — undo = discard (restorable in Log Review)
       r = await PB.update(id, { metadata: Object.assign({}, confirmEntry.metadata || {}, { state: 'discarded' }) });
+    } else if (confirmEntry && confirmEntry.entry_type === LiftCore.ENTRY_TYPE) {   // W3b §3 Q2: the HR rule — discard, never a DELETE (L18)
+      r = await PB.update(id, { metadata: LiftCore.checkpointPayload(confirmEntry.metadata, 'discarded', new Date().toISOString()) });
+      if (!r.error) { var hrWhy = await liftUndoLinkedHr(confirmEntry); if (hrWhy) { showSafBackOnly(hrWhy); return; } }
     } else r = await PB.remove(id);
     // W2 (C-8): a refused undo says so and stays here -- the entry is still filed
     if (r.error) { showSafBackOnly('undo refused (' + (r.error.message || r.error.status) + ') -- the entry is still filed'); return; }
@@ -2782,6 +2930,9 @@ function formatMetaReadable(type, meta, notes, startedAt, endedAt) {
         if (zt.gap) row('unclassified', mmssRow(zt.gap) + ' (signal lost)');
       }
       break;
+    case 'resistance':   // W3b: what filed, in words (the numbers are LiftCore's: the same the views serve)
+      liftReadableRows(meta).forEach(function(r) { row(r.k, r.v); });
+      break;
     case 'fast':
       if (endedAt) {
         var dur = ((new Date(endedAt) - new Date(startedAt)) / 3600000).toFixed(1);
@@ -2865,7 +3016,8 @@ async function renderLogReview() {
     document.getElementById('rv-list').innerHTML = '<div class="empty-state">configure backend</div>';
     return;
   }
-  var result = await PB.list({ sort: '-started_at', perPage: 10 });
+  // W3b: a Lift template is configuration, not an entry: never listed (the filter is the store's, so 10 stays 10)
+  var result = await PB.list({ sort: '-started_at', perPage: 10, filter: 'entry_type != "' + LiftCore.TEMPLATE_TYPE + '"' });
   var countEl = document.getElementById('rv-count');
   if (result.error || !result.data) {   // W2: a failed read is never shown as an empty journal
     document.getElementById('rv-list').innerHTML = '<div class="empty-state">could not load entries &middot; ' + escHtml((result.error && result.error.message) || 'no response') + '</div>';
@@ -2887,10 +3039,13 @@ async function renderLogReview() {
     var m       = EMETA[e.entry_type] || { code: e.entry_type.substring(0,2).toUpperCase(), label: e.entry_type };
     var meta    = e.metadata || {};
     var timeStr = new Date(e.started_at).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false });
-    var st      = e.entry_type === 'heart_rate' ? HRCore.stateOf(e) : 'filed';
+    var lift    = e.entry_type === LiftCore.ENTRY_TYPE;
+    var st      = (e.entry_type === 'heart_rate' || lift) ? HRCore.stateOf(e) : 'filed';
     var stLabel = st === 'active' ? 'IN PROGRESS' : st === 'stopped' ? 'UNFILED' : st === 'discarded' ? 'DISCARDED' : '';
     var readable = formatMetaReadable(e.entry_type, meta, e.notes, e.started_at, e.ended_at);
-    if (st === 'active') readable = [{ k: 'state', v: 'in progress · ' + HRCore.summarize(meta.samples || []).count + ' samples · last store write ' + (meta.checkpoint_at ? new Date(meta.checkpoint_at).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false }) : '—') }];
+    var lastWrite = meta.checkpoint_at ? new Date(meta.checkpoint_at).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false }) : '—';
+    if (st === 'active' && lift) { var lp = liftProgressOf(meta); readable = [{ k: 'state', v: 'in progress · ' + lp.confirmed + ' of ' + lp.total + ' sets confirmed · last store write ' + lastWrite }]; }
+    else if (st === 'active') readable = [{ k: 'state', v: 'in progress · ' + HRCore.summarize(meta.samples || []).count + ' samples · last store write ' + lastWrite }];
     else if (stLabel) readable.unshift({ k: 'state', v: stLabel.toLowerCase() });
     var detailRows = readable.map(function(r) {
       return '<div class="review-entry__detail-row">' +
@@ -2905,7 +3060,8 @@ async function renderLogReview() {
         hrBuildLineChart(meta.samples, 380, 190, meta.gaps) + '</div>';
     }
     if (st === 'stopped')   detailRows += '<button class="btn-primary" style="margin-top:8px" onclick="event.stopPropagation();hrFileFromReview(\'' + e.id + '\')">FILE THIS SESSION</button>';
-    if (st === 'discarded') detailRows += '<button class="btn-secondary" style="margin-top:8px" onclick="event.stopPropagation();hrRestoreFromReview(\'' + e.id + '\')">RESTORE (to unfiled)</button>';
+    if (st === 'discarded' && lift) detailRows += '<button class="btn-secondary" style="margin-top:8px;color:var(--ink);border-color:var(--paper-line)" onclick="event.stopPropagation();liftRestoreFromReview(\'' + e.id + '\')">RESTORE (to filed)</button>';
+    else if (st === 'discarded') detailRows += '<button class="btn-secondary" style="margin-top:8px" onclick="event.stopPropagation();hrRestoreFromReview(\'' + e.id + '\')">RESTORE (to unfiled)</button>';
     return '<div class="review-entry" onclick="toggleReviewDetail(' + idx + ')">' +
       '<div class="review-entry__head">' +
         '<span class="review-entry__code">' + m.code + '</span>' +
@@ -2939,6 +3095,743 @@ async function hrRestoreFromReview(id) {
   if (r.error || !r.data) { showErr('could not load the session from the store'); autoHideErr(4000); return; }
   var m = Object.assign({}, r.data.metadata || {}, { state: 'stopped', v: 2 });
   var u = await PB.update(id, { metadata: m });
+  if (u.error) { showErr('could not restore — retry'); autoHideErr(4000); return; }
+  render();
+}
+
+// ── LIFT (W3b: resistance logging) ─────────────────────────────────────────
+// Built from W3b_Mock/index.html in the journal's classes. Every rule is lift-core.js's (L1–L20);
+// this script renders, wires the HR capture it shares (ONE connect / capture / store path), and
+// keeps the durability the HR session has: the local copy on every change, the store from START,
+// a page-hide flush, launch recovery (the store first), a START guard, nothing deleted.
+
+// The local copy (brief §1.3): LiftCore's shape, so HRCore.resumeDecision reads it as it reads hr_session.
+function liftGetLocal() {
+  try { var s = JSON.parse(localStorage.getItem(LIFT_KEY)); return (s && s.v === LiftCore.META_V && s.session_id && s.meta) ? s : null; }
+  catch (e) { return null; }
+}
+function liftSaveLocal() {
+  if (!liftSession) return;
+  try { localStorage.setItem(LIFT_KEY, JSON.stringify(liftSession)); } catch (e) { /* storage full: the store is the other copy */ }
+}
+function liftClearLocal() { try { localStorage.removeItem(LIFT_KEY); } catch (e) {} }
+function liftSaveLocalFromStore(rec, stale) {
+  var m = rec.metadata || {};
+  var s = { v: LiftCore.META_V, session_id: m.session_id, started_at: Date.parse(String(rec.started_at).replace(' ', 'T')),
+            pb_id: rec.id, missed: 0, meta: m };
+  if (stale) { var last = Date.parse(String(m.checkpoint_at || rec.started_at).replace(' ', 'T')); s.ended_at = isNaN(last) ? s.started_at : last; }
+  try { localStorage.setItem(LIFT_KEY, JSON.stringify(s)); } catch (e) {}
+}
+
+function liftStrapLinked() { return !!(liftSession && liftSession.meta && liftSession.meta.hr_mode === 'strap'); }
+// The HR session in memory is the running Lift session's own strap session (Q3 (c): it names the Lift session).
+function liftLinkedHr() {
+  return !!(liftRunning && liftStrapLinked() && hrLiftSessionId && hrLiftSessionId === liftSession.session_id && (hrSessionActive || hrSessionData));
+}
+function liftKeepsStrap(hash) { return hash === LiftCore.LIFT_ROUTE || hash.indexOf('#lift/tpl/') === 0; }
+// Home: the unfiled HR checkpoint belongs to the interrupted Lift session (one banner, one RESUME, which is also the
+// Bluetooth gesture). A FINISHED Lift session is not paired: its FILE files the Lift record only, so the HR session keeps its own banner.
+function liftPairsHr() {
+  var local = liftGetLocal(), cp = hrGetCheckpoint();
+  if (!local || local.ended_at || !cp) return false;
+  try {
+    var now = Date.now();
+    return !!LiftCore.pairDecision(LiftCore.resumeDecision({ store: null, local: local, nowMs: now }),
+                                   HRCore.resumeDecision({ store: null, local: cp, nowMs: now })).hr;
+  } catch (e) { return false; }
+}
+function liftUtcOffsetS(ms) { return 0 - new Date(ms).getTimezoneOffset() * 60; }   // the phone's offset at START (D-57 (10)); east positive
+function liftFmtDay(d, weekday) {   // 'YYYY-MM-DD' -> '19 Sep' / 'Fri 19 Sep', read in UTC (a date-only value); fixed names, not the ICU's ('Sept')
+  if (!d) return '';
+  var t = new Date(d + 'T00:00:00Z');
+  if (isNaN(t)) return '';
+  var day = t.getUTCDate() + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][t.getUTCMonth()];
+  return weekday ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][t.getUTCDay()] + ' ' + day : day;
+}
+function liftKg(n) { return Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' kg'; }
+function liftSideTag(side) { return side === 'both' ? '<span class="ex-tag">BI</span>' : '<span class="ex-tag ex-tag--uni">UNI &middot; ' + side + '</span>'; }
+function liftProgressOf(meta) { try { return LiftCore.progress(meta); } catch (e) { return { confirmed: 0, total: 0, volume_kg: 0 }; } }
+function liftSaf(metaHtml, btnHtml) {   // the Lift screens' own footer (the journal's sign-and-file bar)
+  var saf = document.getElementById('saf');
+  if (!saf) return;
+  clearInterval(safClockTick);
+  saf.style.display = '';
+  saf.innerHTML = (metaHtml ? '<div class="saf-meta">' + metaHtml + '</div>' : '') + '<div class="err-band" id="err-band"></div>' + btnHtml;
+}
+function liftSafCell(label, valueHtml, id, right) {
+  return '<div class="saf-time"' + (right ? '' : ' style="align-items:flex-start"') + '><span class="saf-time__label">' + label + '</span>' +
+    '<span class="saf-time__val"' + (id ? ' id="' + id + '"' : '') + '>' + valueHtml + '</span></div>';
+}
+function liftHeader(sub, title, crumbLabel, crumbHash) {
+  return '<div class="med-header"><div class="med-header__top"><span class="rx-badge">&#8478;</span>' +
+    '<span class="header-eyebrow">HEALTH.DB &middot; LI &middot; FORM LI</span>' +
+    '<button class="header-breadcrumb" onclick="navigate(\'' + crumbHash + '\')">&lsaquo; ' + crumbLabel + '</button></div>' +
+    '<div class="header-sub">' + sub + '</div><div class="header-title">' + title + '</div></div>';
+}
+function liftSecHead(no, title, right) {
+  return '<div class="section-head"><span class="section-head__no">' + no + '</span><span class="section-head__title">' + title + '</span>' +
+    (right ? '<span class="section-head__right">' + right + '</span>' : '') + '</div>';
+}
+function liftSetLat(v, btn) {   // the laterality chips flip in place: a repaint would clear the name being typed
+  liftNewLat = v;
+  [].forEach.call(btn.parentNode.children, function(b) { b.setAttribute('aria-pressed', String(b === btn)); });
+}
+function liftLatChips() {
+  return '<div class="chips" style="margin-top:0">' +
+    '<button class="chip" aria-pressed="' + (liftNewLat === 'both') + '" onclick="liftSetLat(\'both\',this)">BILATERAL</button>' +
+    '<button class="chip" aria-pressed="' + (liftNewLat === 'uni') + '" onclick="liftSetLat(\'uni\',this)">UNILATERAL &middot; L + R</button></div>';
+}
+
+// ── the store reads (templates, history for pre-fill, today's HR sessions for LINK) ──
+async function liftLoad() {
+  var t = await PB.list({ sort: '-started_at', perPage: 200, filter: 'entry_type = "' + LiftCore.TEMPLATE_TYPE + '"' });
+  if (!t.error && t.data) {
+    liftTemplates = t.data;
+    try { localStorage.setItem(LIFT_TPL_CACHE, JSON.stringify(t.data.map(function(r) {
+      return { id: r.id, entry_type: r.entry_type, started_at: r.started_at, metadata: r.metadata }; }))); } catch (e) {}
+  } else {
+    try { liftTemplates = JSON.parse(localStorage.getItem(LIFT_TPL_CACHE)) || []; } catch (e) { liftTemplates = []; }
+  }
+  var h = await PB.list({ sort: '-started_at', perPage: 200, filter: 'entry_type = "' + LiftCore.ENTRY_TYPE + '" && metadata.state = "filed"' });
+  liftHistoryOk = !h.error && !!h.data;
+  liftHistory = liftHistoryOk ? h.data : [];
+  return !t.error;
+}
+async function liftLoadTodayHr() {
+  var mid = new Date(); mid.setHours(0, 0, 0, 0);
+  var r = await PB.list({ sort: '-started_at', perPage: 20, filter: 'entry_type = "heart_rate" && started_at >= "' + pbDate(mid.toISOString()) + '"' });
+  liftTodayHr = (!r.error && r.data) ? r.data.filter(function(e) { return HRCore.stateOf(e) === 'filed'; }) : [];
+  return !r.error;
+}
+function liftTemplateById(id) { return (liftTemplates || []).filter(function(r) { return r.id === id; })[0] || null; }
+function liftSelectedTemplate() {
+  var list = LiftCore.pickable(liftTemplates || []);
+  var t = liftTemplateById(liftPick.tplId);
+  if (!t || t.metadata.archived === true) t = list[0] || null;
+  liftPick.tplId = t ? t.id : null;
+  return t;
+}
+
+// ── PICK: the template + how heart rate is recorded (mock §01, §02) ──
+function liftRenderPick(meta) {
+  document.getElementById('scroll').classList.remove('scroll--nofooter');
+  liftTodayHr = null;   // re-read on every entry: an HR session filed since must be linkable
+  if (liftPick.hrMode === 'link') liftLoadTodayHr().then(function() { if (location.hash === LiftCore.LIFT_ROUTE && !liftRunning) liftPaintPick(); });
+  if (liftTemplates === null) {
+    document.getElementById('app').innerHTML = liftHeader('LI &middot; RESISTANCE', 'Lift', 'Today', '#home') +
+      '<div class="section">' + liftSecHead('&sect;01', 'Workout', 'your templates') + '<div class="empty-state">Loading&hellip;</div></div>';
+    liftLoad().then(function() { if (location.hash === LiftCore.LIFT_ROUTE && !liftRunning) liftPaintPick(); });
+    return;
+  }
+  liftPaintPick();
+  liftLoad().then(function() { if (location.hash === LiftCore.LIFT_ROUTE && !liftRunning) liftPaintPick(); });   // refresh behind the cached paint
+}
+function liftPaintPick() {
+  currentType = 'resistance';
+  var list = LiftCore.pickable(liftTemplates || []), sel = liftSelectedTemplate();
+  var rows = list.map(function(t) {
+    var h = LiftCore.historyFor(liftHistory, t.id)[0], on = sel && sel.id === t.id;
+    return '<div class="option-row" aria-selected="' + on + '" onclick="liftPick.tplId=\'' + t.id + '\';liftPaintPick()">' +
+      '<span class="radio-circle">' + (on ? '&#10003;' : '') + '</span>' +
+      '<span class="option-row__body"><span class="option-row__name">' + escHtml(t.metadata.name) + '</span>' +
+      '<span class="option-row__sub">' + t.metadata.lines.length + ' exercise lines &middot; ' +
+        (h ? 'last ' + (h.date ? liftFmtDay(h.date, true) : 'date unknown') : (liftHistoryOk ? 'never logged' : 'history unavailable (no signal)')) + '</span></span>' +
+      '<button class="link-btn" onclick="event.stopPropagation();navigate(\'#lift/tpl/' + t.id + '\')">edit</button></div>';
+  }).join('') || '<div class="empty-state" style="padding:var(--s-9)">no templates yet &middot; make one below</div>';
+  var chips = [['strap', 'START STRAP'], ['link', "LINK TODAY'S"], ['none', 'NONE']].map(function(c) {
+    return '<button class="chip" aria-pressed="' + (liftPick.hrMode === c[0]) + '" onclick="liftSetHrMode(\'' + c[0] + '\')">' + c[1] + '</button>'; }).join('');
+  var on = !!(hrDevice && hrDevice.gatt && hrDevice.gatt.connected);
+  var hrBody;
+  if (liftPick.hrMode === 'strap') {
+    hrBody = '<div style="padding:var(--s-8) var(--s-9);text-align:center;background:var(--navy-dark)">' +
+        '<div id="hr-live-bpm" style="font:400 56px/1 var(--font-mono);letter-spacing:.08em;color:' + (on ? 'var(--state-ok)' : 'var(--state-err)') + '">' + (on && hrLastBpm ? hrLastBpm : '---') + '</div>' +
+        '<div id="hr-ble-status" style="font:600 9px/1.2 var(--font-sans);letter-spacing:.18em;text-transform:uppercase;margin-top:var(--s-5);color:' + (on ? 'var(--state-ok)' : 'var(--state-err)') + '">' +
+          (on ? '&#9679; CONNECTED' : '&#9679; NOT CONNECTED') + '</div></div>' +
+      '<div style="padding:var(--s-7) var(--s-9)"><button class="btn-primary" id="hr-connect-btn" data-idle-label="CONNECT STRAP" onclick="hrConnect()" style="background:var(--accent)">' +
+        (on ? 'RECONNECT' : 'CONNECT STRAP') + '</button></div>' +
+      '<div class="field-grid field-grid--1" style="padding-top:0"><div class="cell__hint">Type: <b>' + LiftCore.HR_EXERCISE_TYPE + '</b>, set by Lift (not asked). ' +
+        'START SESSION starts the Lift log AND the strap recording, linked. Its live heart rate sits at the top of the Lift screen; FINISH &amp; FILE ends and files both.</div></div>';
+  } else if (liftPick.hrMode === 'link') {
+    hrBody = liftTodayHr === null ? '<div class="empty-state" style="padding:var(--s-9)">Loading today&rsquo;s HR sessions&hellip;</div>'
+      : (liftTodayHr.map(function(r) {
+          var m = r.metadata || {}, onr = liftPick.hrLink === r.id;
+          var lbl = new Date(String(r.started_at).replace(' ', 'T')).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false }) +
+            ' &middot; ' + escHtml(m.exercise_type || '—') + ' &middot; filed &middot; ' + Math.round((m.duration_sec || 0) / 60) + ' min';
+          return '<div class="option-row" aria-selected="' + onr + '" onclick="liftPick.hrLink=\'' + r.id + '\';liftPaintPick()"><span class="radio-circle">' + (onr ? '&#10003;' : '') + '</span>' +
+            '<span class="option-row__body"><span class="option-row__name">' + lbl + '</span><span class="option-row__sub">an HR session already filed today &middot; you pick, never a guess</span></span><span></span></div>';
+        }).join('') || '<div class="field-grid field-grid--1"><div class="cell__hint">No HR session filed today to link.</div></div>');
+  } else {
+    hrBody = '<div class="field-grid field-grid--1"><div class="cell__hint">No HR session. The Fitbit workout is still matched by time in Kito&rsquo;s view (the next morning, D-57 (11)).</div></div>';
+  }
+  document.getElementById('app').innerHTML = liftHeader('LI &middot; RESISTANCE', 'Lift', 'Today', '#home') +
+    '<div class="section">' + liftSecHead('&sect;01', 'Workout', 'your templates') + rows +
+      '<div class="option-row" onclick="navigate(\'#lift/tpl/new\')"><span class="radio-circle" style="color:var(--accent)">+</span>' +
+      '<span class="option-row__body"><span class="option-row__name">New template</span><span class="option-row__sub">name it, add exercises in order</span></span><span></span></div></div>' +
+    '<div class="section">' + liftSecHead('&sect;02', 'Heart rate') + '<div class="chips">' + chips + '</div>' + hrBody + '</div>' +
+    (!liftHistoryOk ? '<div class="ask">No signal: the last session cannot be read, so every exercise starts with one empty set.</div>' : '') +
+    '<div class="audit-footer">&middot; a session copies its template when it starts: editing a template never changes a past session<br>' +
+      '&middot; the session is in the store from START and files once, as ONE journal record</div>';
+  liftSaf(liftSafCell('Workout', sel ? escHtml(sel.metadata.name) : '&mdash;') + liftSafCell('Heart rate', '', 'lift-hr-state', true),
+          '<button class="btn-primary" id="lift-start-btn" onclick="liftStart()">START SESSION</button>');
+  liftUpdateStartGate();
+}
+function liftSetHrMode(m) {
+  liftPick.hrMode = m;
+  if (m === 'link' && liftTodayHr === null) liftLoadTodayHr().then(function() { if (location.hash === LiftCore.LIFT_ROUTE && !liftRunning) liftPaintPick(); });
+  liftPaintPick();
+}
+function liftCanStart() {
+  return LiftCore.canStart({ template: liftSelectedTemplate(), hrMode: liftPick.hrMode,
+                             strapConnected: !!(hrDevice && hrDevice.gatt && hrDevice.gatt.connected), hrSessionId: liftPick.hrLink });
+}
+function liftUpdateStartGate() {   // L17: START waits for what it needs, and says what
+  var btn = document.getElementById('lift-start-btn');
+  if (!btn || liftRunning) return;
+  var c = liftCanStart();
+  btn.disabled = !c.ok;
+  var st = document.getElementById('lift-hr-state');
+  var on = !!(hrDevice && hrDevice.gatt && hrDevice.gatt.connected);
+  if (st) st.textContent = liftPick.hrMode === 'strap' ? (on ? 'strap · connected' : 'strap · connect first')
+                         : liftPick.hrMode === 'link' ? (liftPick.hrLink ? 'linked' : 'pick one') : 'none';
+}
+
+// ── START (L4–L10, L17, L18) ──
+function liftStart() {
+  var c = liftCanStart();
+  if (!c.ok) { showErr(c.reason); autoHideErr(5000); return; }
+  // Never over an unfiled Lift or HR session (the JA2 guard, the Lift half first).
+  var guard = LiftCore.startGuard({ local: liftGetLocal(), storeOpen: null },
+                                  { local: hrGetCheckpoint() || hrGetSlot(HR_OTHER_KEY), storeOpen: null }, hrFmtStart);
+  if (guard) { navigate('#home'); setTimeout(function() { showErr(guard.message); autoHideErr(10000); }, 150); return; }   // shown after home re-renders
+  var tpl = liftSelectedTemplate(), sid = hrMintSessionId(), now = Date.now();
+  liftSession = LiftCore.startSession(tpl, liftHistoryOk ? liftHistory : [],
+    { sessionId: sid, nowMs: now, utcOffsetS: liftUtcOffsetS(now), hrMode: liftPick.hrMode,
+      hrSessionId: liftPick.hrMode === 'link' ? liftPick.hrLink : null });
+  liftStore.adopt(null, 0);
+  liftStore.touch();
+  liftSaveLocal();
+  if (liftSession.meta.hr_mode === 'strap') {   // ONE START for both (D-60 (2)): the HR capture, typed Weightlifting, naming this session
+    hrExerciseType = LiftCore.HR_EXERCISE_TYPE;
+    hrBeginCapture(sid);
+  }
+  liftRunning = true;
+  liftStartTicks();
+  navigate(LiftCore.LIFT_ROUTE);
+}
+
+// ── the store session (L18): the local copy on every change, a store write when due ──
+function liftSnapshot() { return { started_at: liftSession.started_at, ended_at: liftSession.ended_at, meta: liftSession.meta }; }
+async function liftWrite(state) {
+  if (!db || !liftStore || !liftSession) return false;
+  var mine = liftSession;
+  var ok = await liftStore.write(state, liftSnapshot);
+  mine.pb_id = liftStore.state.pbId; mine.missed = liftStore.state.missed;
+  if (liftSession === mine) liftSaveLocal();   // the local copy carries pb_id / missed either way
+  return ok;
+}
+async function liftWriteRetry(state, tries) {
+  for (var i = 0; i < (tries || 3); i++) {
+    if (await liftWrite(state)) return true;
+    if (i + 1 < (tries || 3)) await new Promise(function(r) { setTimeout(r, 2000 * (i + 1)); });
+  }
+  return false;
+}
+function liftCommit(meta) {   // a change: the local copy now, the store when due (at most one write per 5 s)
+  liftSession.meta = meta;
+  liftStore.touch();
+  liftSaveLocal();
+  liftPaintProgress();
+}
+function liftStartTicks() {
+  clearInterval(liftTickTimer);
+  liftTickTimer = setInterval(liftTick, 1000);
+  liftTick();
+}
+function liftTick() {
+  if (!liftRunning || !liftSession) { clearInterval(liftTickTimer); return; }
+  // L15 (strap): the HR store record's id, stored as soon as it exists (normally the first HR write, at START)
+  if (liftStrapLinked() && hrLiftSessionId === liftSession.session_id && hrStore && hrStore.state.pbId) {
+    var l = LiftCore.linkHr(liftSession.meta, hrStore.state.pbId);
+    if (l.changed) { liftSession.meta = l.meta; liftStore.touch(); liftSaveLocal(); }
+  }
+  if (!liftSession.ended_at && !liftFiling && liftStore.due()) liftWrite('active');
+  var ss = document.getElementById('lift-store-status');
+  if (ss) { ss.textContent = 'lift ' + liftStore.statusText().toLowerCase(); ss.style.color = liftStore.state.missed ? 'var(--state-err)' : ''; }
+  var t = document.getElementById('lift-timer');
+  if (t) t.textContent = fmtDur(Date.now() - liftSession.started_at);
+}
+// Page teardown: the local copy, and a keepalive PATCH of the active session (the HR pattern).
+function liftFlushOnHide() {
+  if (!liftRunning || !liftSession) return;
+  liftSaveLocal();
+  if (!db || !liftStore || !liftStore.state.pbId || liftSession.ended_at) return;
+  try {
+    PB.flush(liftStore.state.pbId, { metadata: LiftCore.checkpointPayload(liftSession.meta, 'active', new Date().toISOString()) });
+  } catch (e) { /* best effort: the next tick or the launch recovery covers it */ }
+}
+window.addEventListener('pagehide', liftFlushOnHide);
+document.addEventListener('freeze', liftFlushOnHide);
+document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'visible' && liftRunning) liftTick(); });
+
+// ── THE SESSION SCREEN (the lock's one route) ──
+function liftRenderLocked(hash) {
+  var scroll = document.getElementById('scroll');
+  if (hash === LiftCore.HR_ROUTE) {   // L19: the strap's own view, admitted while it is linked
+    if (hrSessionActive) { if (!document.getElementById('hr-locked')) hrRenderLockedView(); return; }
+    if (hrSessionData && liftLinkedHr()) { hrRenderReportView(); return; }
+    location.hash = LiftCore.LIFT_ROUTE; return;
+  }
+  var keep = !!document.getElementById('lift-session'), y = scroll.scrollTop;
+  scroll.classList.remove('scroll--nofooter');
+  liftRenderSession();
+  scroll.scrollTop = keep ? y : 0;
+}
+function liftStripHTML() {
+  var s = liftSession, m = s.meta, strap = m.hr_mode === 'strap';
+  var live = strap && hrSessionActive && hrLiftSessionId === s.session_id;   // the HR ticker drives every hr-* id below
+  var sub = strap ? (live ? 'STRAP &middot; WEIGHTLIFTING &middot; <span id="hr-ble-status">&#9679; CONNECTED</span>' : 'STRAP &middot; HR SESSION STOPPED')
+          : m.hr_mode === 'link' ? 'HR LINKED &middot; ' + escHtml(m.hr_session_id || '') : 'NO STRAP';
+  return '<div class="hr-strip" id="lift-strip">' +
+    (live ? '<button class="hr-strip__bpm" id="hr-live-bpm" onclick="navigate(\'' + LiftCore.HR_ROUTE + '\')" aria-label="heart rate view" style="color:' +
+              (hrLastBpm ? 'var(--state-ok)' : 'var(--state-err)') + '">' + (hrLastBpm ? String(hrLastBpm) : '---') + '</button>'
+          : '<div class="hr-strip__bpm" style="color:var(--on-navy-fg-dim);cursor:default">&mdash;</div>') +
+    '<div class="hr-strip__mid"><span class="hr-strip__name">LI &middot; ' + escHtml(m.template.name) + '</span>' +
+      '<span class="hr-strip__sub">' + sub + '</span>' +
+      (live ? '<span class="hr-strip__sub">hr <span id="hr-store-status">' + hrStoreStatusText() + '</span></span>' : '') + '</div>' +
+    '<div>' + (live ? '<div class="hr-strip__timer" id="hr-timer">' + fmtDur(Date.now() - hrStartTime)
+                    : '<div class="hr-strip__timer" id="lift-timer">' + fmtDur(Date.now() - s.started_at)) + '</div>' +
+      '<div class="hr-strip__store" id="lift-store-status">lift ' + liftStore.statusText().toLowerCase() + '</div></div>' +
+    (live ? '<div class="hr-strip__row"><div class="hr-gap-note" id="hr-gap-note" style="display:none"></div>' +
+              '<button class="btn-secondary" id="hr-reconnect-btn" onclick="hrManualReconnect()" style="display:none;width:auto;padding:8px 10px;border-color:var(--state-warn);color:var(--state-warn)">RECONNECT MONITOR</button></div>' : '') +
+  '</div>';
+}
+function liftSetNote(s) {
+  if (!s.c) return '';
+  if (s.r === 0 && s.w === 0) return '<span class="set-note">SKIP</span>';
+  if (s.w === 0) return '<span class="set-note" style="color:var(--accent)">BODYWEIGHT</span>';
+  return '';
+}
+function liftRowClass(s) { return 'set-row' + (s.c ? ' set-row--done' : ((s.r !== null || s.w !== null) ? ' set-row--sugg' : '')); }
+function liftSetRowHTML(ei, si, s) {
+  var k = ei + '-' + si;
+  return '<div class="' + liftRowClass(s) + '" id="lift-row-' + k + '"><span class="set-row__no">SET ' + (si + 1) +
+      '<span class="set-from" id="lift-from-' + k + '">' + (s.from ? liftFmtDay(s.from) : '') + '</span></span>' +
+    '<input class="set-in" id="lift-r-' + k + '" inputmode="numeric" value="' + (s.r === null ? '' : s.r) + '" placeholder="R" onfocus="this.select()" onchange="liftEdit(' + ei + ',' + si + ',\'r\',this)">' +
+    '<span class="set-row__x">&times;</span>' +
+    '<input class="set-in" id="lift-w-' + k + '" inputmode="decimal" value="' + (s.w === null ? '' : s.w) + '" placeholder="W" onfocus="this.select()" onchange="liftEdit(' + ei + ',' + si + ',\'w\',this)">' +
+    '<span id="lift-note-' + k + '"><span class="set-unit">kg</span>' + liftSetNote(s) + '</span>' +
+    '<button class="set-check" aria-label="confirm set ' + (si + 1) + '" onclick="liftCheck(' + ei + ',' + si + ')">&#10003;</button></div>';
+}
+function liftRenderSession() {
+  var s = liftSession, m = s.meta, n = m.exercises.length;
+  var ex = m.exercises.map(function(e, ei) {
+    var right = e.prior ? 'last ' + liftFmtDay(e.prior, true) : e.added ? 'added today' : (liftHistoryOk ? 'no history' : 'no signal');
+    return '<div class="section">' +
+      '<div class="section-head"><span class="section-head__no">&sect;' + pad(ei + 1) + '</span>' +
+      '<span class="section-head__title">' + escHtml(e.name) + '</span>' + liftSideTag(e.side) + '<span class="section-head__right">' + right + '</span></div>' +
+      e.sets.map(function(st, si) { return liftSetRowHTML(ei, si, st); }).join('') +
+      '<div class="ex-foot"><button class="btn-light" onclick="liftAddSet(' + ei + ')">+ SET</button>' +
+      '<button class="btn-light" onclick="liftRemoveSet(' + ei + ')"' + (e.sets.length <= 1 ? ' disabled' : '') + '>&minus; SET</button>' +
+      '<span class="ex-foot__vol" id="lift-vol-' + ei + '">' + liftKg(LiftCore.lineVolume(e)) + '<br>confirmed R&times;W</span></div></div>';
+  }).join('');
+  document.getElementById('app').innerHTML = '<div id="lift-session">' + liftStripHTML() +
+    '<div class="ask"><b>Grey italic = last session&rsquo;s set, a suggestion.</b> Tap &#10003; when you have done it. Changing a number confirms that set. Anything left unconfirmed saves as a skip (R 0 &middot; W 0).</div>' +
+    ex +
+    '<div class="section">' + liftSecHead('&sect;' + pad(n + 1), 'Add an exercise today') +
+      '<div class="field-grid field-grid--1"><label class="cell"><span class="cell__label">EXERCISE (YOUR NAME)</span><input class="cell__value" id="lift-day-ex" placeholder="not in the template"></label></div>' +
+      liftLatChips() +
+      '<div style="padding:0 var(--s-9) var(--s-9)"><button class="btn-light" onclick="liftAddExercise()">+ ADD TO TODAY</button></div>' +
+      '<div class="field-grid field-grid--1" style="padding-top:0"><div class="cell__hint">Today only: the template is not changed.</div></div></div>' +
+    '<div class="section">' + liftSecHead('&sect;' + pad(n + 2), 'Review', 'Kito reads this') +
+      '<div class="annotation-wrap"><textarea class="annotation" id="lift-review" placeholder="How did it go? Anything goes here. This one field is served to Kito (D-58)." oninput="liftReviewInput(this)">' + escHtml(m.review) + '</textarea>' +
+      '<div class="annotation-meta"><span>free text &middot; optional</span><span id="lift-review-cc">' + m.review.length + ' chars</span></div></div></div>' +
+    '<div class="audit-footer">&middot; the session saves to the store as you go (active &rarr; filed, the HR session pattern): a dead phone loses nothing confirmed<br>' +
+      '&middot; while it runs, Home is locked: only this screen' + (liftStrapLinked() ? ' and the strap&rsquo;s view stay' : ' stays') + ' open</div></div>';
+  var p = liftProgressOf(m);
+  liftSaf(liftSafCell('Confirmed', '<span id="lift-conf">' + p.confirmed + ' / ' + p.total + ' sets</span>') +
+          liftSafCell('Volume &middot; confirmed', '<span id="lift-vol">' + liftKg(p.volume_kg) + '</span>', null, true),
+          '<button class="btn-primary" id="lift-finish-btn" onclick="liftAskFinish()">FINISH &amp; FILE</button>');
+  if (hrSessionActive && hrLiftSessionId === s.session_id) hrStartLockedTicker();   // the strip's hr-* ids are the HR ticker's
+  liftTick();
+}
+function liftPaintProgress() {
+  var p = liftProgressOf(liftSession.meta);
+  var c = document.getElementById('lift-conf'), v = document.getElementById('lift-vol');
+  if (c) c.textContent = p.confirmed + ' / ' + p.total + ' sets';
+  if (v) v.textContent = liftKg(p.volume_kg);
+}
+function liftRefreshRow(ei, si) {
+  var s = liftSession.meta.exercises[ei].sets[si], k = ei + '-' + si;
+  var row = document.getElementById('lift-row-' + k);
+  if (!row) return;
+  row.className = liftRowClass(s);
+  document.getElementById('lift-note-' + k).innerHTML = '<span class="set-unit">kg</span>' + liftSetNote(s);
+  document.getElementById('lift-from-' + k).textContent = s.from ? liftFmtDay(s.from) : '';
+  var r = document.getElementById('lift-r-' + k), w = document.getElementById('lift-w-' + k);
+  r.value = s.r === null ? '' : s.r; w.value = s.w === null ? '' : s.w;   // the model, normalised ('22,5' -> 22.5)
+  r.removeAttribute('aria-invalid'); w.removeAttribute('aria-invalid');
+  document.getElementById('lift-vol-' + ei).innerHTML = liftKg(LiftCore.lineVolume(liftSession.meta.exercises[ei])) + '<br>confirmed R&times;W';
+}
+// Every edit is the core's (L10, I-5, I-8, I-9); a refusal is said in words and the field is marked, never a silent 0.
+function liftApply(res, ei, si) {
+  if (JSON.stringify(res.meta) !== JSON.stringify(liftSession.meta)) liftCommit(res.meta);
+  if (ei !== undefined) liftRefreshRow(ei, si);
+  if (res.refused) {
+    showErr(res.refused); autoHideErr(6000);
+    var f = ei !== undefined && res.focus ? document.getElementById('lift-' + res.focus + '-' + ei + '-' + si) : null;
+    if (f) { f.setAttribute('aria-invalid', 'true'); f.focus(); }
+  }
+}
+function liftEdit(ei, si, field, el) {
+  var res = LiftCore.editSet(liftSession.meta, ei, si, field, el.value);
+  if (res.refused && JSON.stringify(res.meta) === JSON.stringify(liftSession.meta)) {   // unparseable: nothing changed, the text stays to be corrected
+    showErr(res.refused); autoHideErr(6000); el.setAttribute('aria-invalid', 'true'); return;
+  }
+  liftApply(res, ei, si);
+}
+function liftCheck(ei, si) {
+  var k = ei + '-' + si;
+  var res = LiftCore.tapCheck(liftSession.meta, ei, si, document.getElementById('lift-r-' + k).value, document.getElementById('lift-w-' + k).value);
+  if (res.refused && JSON.stringify(res.meta) === JSON.stringify(liftSession.meta)) {
+    showErr(res.refused); autoHideErr(6000);
+    var bad = document.getElementById('lift-' + (res.focus || 'r') + '-' + k); if (bad) { bad.setAttribute('aria-invalid', 'true'); bad.focus(); }
+    return;
+  }
+  liftApply(res, ei, si);
+  if (!res.refused && res.focus) { var f = document.getElementById('lift-' + res.focus + '-' + k); if (f) f.focus(); }   // ✓ on an empty set: the cursor goes to R (L10)
+}
+function liftAddSet(ei) {
+  liftApply(LiftCore.addSet(liftSession.meta, ei));
+  liftRenderLocked(LiftCore.LIFT_ROUTE);
+  var row = document.getElementById('lift-row-' + ei + '-' + (liftSession.meta.exercises[ei].sets.length - 1));
+  if (row) row.scrollIntoView({ block: 'center' });
+}
+function liftRemoveSet(ei) {
+  var res = LiftCore.removeSet(liftSession.meta, ei);
+  liftApply(res);
+  if (!res.refused) liftRenderLocked(LiftCore.LIFT_ROUTE);
+}
+function liftAddExercise() {
+  var el = document.getElementById('lift-day-ex');
+  var res = LiftCore.addExercise(liftSession.meta, el ? el.value : '', liftNewLat);
+  if (res.refused) { showErr(res.refused); autoHideErr(5000); if (el) el.focus(); return; }
+  liftApply(res);
+  liftRenderLocked(LiftCore.LIFT_ROUTE);
+}
+function liftReviewInput(el) {
+  liftCommit(LiftCore.setReview(liftSession.meta, el.value).meta);
+  var cc = document.getElementById('lift-review-cc'); if (cc) cc.textContent = el.value.length + ' chars';
+}
+
+// ── FINISH & FILE (L20): the Lift session always files; the HR session never blocks it ──
+function liftAskFinish() {
+  var p = liftProgressOf(liftSession.meta), left = p.total - p.confirmed;
+  document.getElementById('lift-overlay').innerHTML = '<div class="overlay" id="lift-finish-overlay"><div class="overlay__box"><div class="overlay__title">Finish and file?</div>' +
+    '<div class="overlay__text">' + p.confirmed + ' of ' + p.total + ' sets confirmed.<br>' +
+    (left ? '<b>' + left + ' unconfirmed set' + (left > 1 ? 's' : '') + ' will save as skipped (R 0 &middot; W 0).</b><br>' : 'Every set confirmed.<br>') +
+    (liftLinkedHr() ? 'The strap session ends and files with it.' : '') + '</div>' +
+    '<button class="btn-primary" id="lift-file-btn" onclick="liftFinish()">FILE SESSION</button><div style="height:var(--s-8)"></div>' +
+    '<button class="btn-secondary" onclick="liftCloseOverlay()">KEEP LOGGING</button></div></div>';
+}
+function liftCloseOverlay() { document.getElementById('lift-overlay').innerHTML = ''; }
+async function liftFinish() {
+  if (liftFiling || !liftSession) return;
+  liftFiling = true;
+  liftCloseOverlay();
+  var btn = document.getElementById('lift-finish-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'FILING…'; }
+  liftSession.ended_at = Date.now();
+  liftSaveLocal();
+  var hrLinked = liftLinkedHr();
+  if (hrLinked && hrSessionActive) hrStopCapture();   // one FINISH for both (D-57 (12)): the capture stops, no HR report
+  var outcome = await LiftCore.fileBoth(
+    function() { return liftWriteRetry('filed', 3); },
+    hrLinked ? function() { return hrStoreWriteRetry('filed', null, 3); } : null);   // the HR session files with no note of its own
+  var hrPbId = hrLinked && hrStore ? hrStore.state.pbId : null;
+  if (outcome.hr_filed === true) { hrClearCheckpoint(); hrResetState(); }
+  // outcome.hr_kept: the HR session stays unfiled on the phone and in the store (its checkpoint carries ended_at),
+  // for Home's own HR banner (review / file / discard): never claimed filed.
+  liftRunning = false;
+  clearInterval(liftTickTimer);
+  liftFiling = false;
+  var pbId = liftStore.state.pbId;
+  liftSession = null;
+  if (outcome.lift_filed) {
+    liftClearLocal();
+    liftStore.adopt(null, 0);
+    liftLastFiled = { outcome: outcome, hrPbId: hrPbId };
+    var rec = await PB.get(pbId);
+    if (rec.error || !rec.data) { navigate('#home'); setTimeout(function() { showErr(outcome.text + ' (the record could not be read back)'); autoHideErr(10000); }, 150); return; }
+    confirmEntry = rec.data;
+    navigate('#confirm');
+    return;
+  }
+  liftStartRetry();   // kept on the phone with its end; retried while the app is open, and FILE on Home's banner
+  navigate('#home');
+  setTimeout(function() { showErr(outcome.text); autoHideErr(15000); }, 150);
+}
+// A finished session the store refused: one silent attempt every 30 s while the app is open (L20 "retrying").
+function liftStartRetry() {
+  clearInterval(liftRetryTimer);
+  liftRetryTimer = setInterval(function() { liftFileKept(false); }, 30000);
+}
+async function liftFileKept(fromTap) {
+  var local = liftGetLocal();
+  if (!local || !local.ended_at) { clearInterval(liftRetryTimer); return false; }
+  if (liftRunning || liftFiling || !PB.signedIn()) return false;
+  liftFiling = true;
+  liftSession = local;
+  liftStore.adopt(local.pb_id, local.missed);
+  liftStore.touch();
+  var ok = await liftWrite('filed');
+  var pbId = liftStore.state.pbId;
+  liftSession = null;
+  liftFiling = false;
+  if (!ok) {
+    if (fromTap) { showErr('the store did not take the Lift session -- kept on this phone; retry'); autoHideErr(8000); }
+    return false;
+  }
+  liftClearLocal();
+  liftStore.adopt(null, 0);
+  clearInterval(liftRetryTimer);
+  if (fromTap) {
+    liftLastFiled = { outcome: LiftCore.fileOutcome(true, null), hrPbId: null };
+    var rec = await PB.get(pbId);
+    if (!rec.error && rec.data) { confirmEntry = rec.data; navigate('#confirm'); return true; }
+  }
+  if (location.hash === '#home' || !location.hash) render();
+  return true;
+}
+
+// ── HOME: an unfiled Lift session (after a reload, or a filing the store refused) ──
+function liftBannerHTML() {
+  var local = liftGetLocal();
+  if (!local || liftRunning) return '';
+  var p = liftProgressOf(local.meta), ended = !!local.ended_at, paired = liftPairsHr();
+  var started = new Date(local.started_at).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false });
+  return '<div class="fast-banner" id="lift-resume-banner" style="border-left:3px solid var(--state-warn)">' +
+    '<span class="fast-banner__code">LI</span>' +
+    '<div class="fast-banner__body">' +
+      '<div class="fast-banner__type">' + (ended ? 'UNFILED' : 'INTERRUPTED') + ' LIFT SESSION &middot; ' + escHtml((local.meta.template && local.meta.template.name) || '—') + '</div>' +
+      '<div class="fast-banner__timer">started ' + started + ' &middot; ' + p.confirmed + ' of ' + p.total + ' sets &middot; ' + (local.pb_id ? 'in store' : 'phone only') +
+        (paired ? ' &middot; + its strap session' : '') + '</div>' +
+    '</div>' +
+    '<button class="fast-banner__end" style="border-color:rgba(34,197,94,.5);color:#86efac" onclick="' + (ended ? 'liftFileKept(true)' : 'liftResume()') + '">' + (ended ? 'FILE' : 'RESUME') + '</button>' +
+    '<button class="fast-banner__end" onclick="liftDiscardArm(this)">DISCARD</button>' +
+  '</div>';
+}
+// RESUME: the Lift session and, when it names it, its strap session: one tap, which is also the Bluetooth gesture.
+function liftResume() {
+  var local = liftGetLocal();
+  if (!local || local.ended_at) return;
+  var paired = liftPairsHr();
+  liftSession = local;
+  liftStore.adopt(local.pb_id || null, local.missed || 0);
+  liftStore.touch();
+  liftRunning = true;
+  if (paired && hrResumeState() && hrSessionActive) hrManualReconnect();   // re-attach without the chooser where getDevices() exists
+  liftStartTicks();
+  navigate(LiftCore.LIFT_ROUTE);
+}
+function liftDiscardArm(btn) {   // two-tap, the second tap names what is discarded (the HR pattern)
+  if (btn.dataset.armed === '1') { liftDiscardLocal(); return; }
+  btn.dataset.armed = '1';
+  var local = liftGetLocal(), p = local ? liftProgressOf(local.meta) : { confirmed: 0, total: 0 };
+  var orig = btn.textContent;
+  btn.textContent = 'DISCARD ' + p.confirmed + ' of ' + p.total + ' sets?';
+  setTimeout(function() { if (btn && btn.isConnected) { btn.dataset.armed = ''; btn.textContent = orig; } }, 4000);
+}
+// Soft discard (§3 Q2, L18): the local copy moves to a 7-day slot, the store record to state "discarded"; nothing is deleted.
+async function liftDiscardLocal() {
+  var local = liftGetLocal();
+  if (!local) return;
+  local.discarded_at = Date.now();
+  try { localStorage.setItem(LIFT_DISCARD_KEY, JSON.stringify(local)); } catch (e) {}
+  liftClearLocal();
+  clearInterval(liftRetryTimer);
+  if (db && local.pb_id) {
+    var body = { metadata: LiftCore.checkpointPayload(local.meta, 'discarded', new Date().toISOString()) };
+    body.ended_at = new Date(local.ended_at || Date.now()).toISOString();
+    var u = await PB.update(local.pb_id, body);
+    if (u.error) { navigate('#home'); setTimeout(function() { showErr('the store did not record the discard (' + (u.error.message || 'refused') + ') -- kept on this phone for 7 days'); }, 150); return; }
+  }
+  navigate('#home');
+}
+// Launch: the store first, then the phone (HRCore's decision through LiftCore.resumeDecision).
+async function liftLaunchRecovery() {
+  var dsc = hrGetSlot(LIFT_DISCARD_KEY);
+  if (dsc && dsc.discarded_at && Date.now() - dsc.discarded_at > HRCore.DISCARD_KEEP_DAYS * 86400000) {
+    try { localStorage.removeItem(LIFT_DISCARD_KEY); } catch (e) {}
+  }
+  var storeRec = null, storeError = false;
+  if (db) {
+    var r = await PB.list({ sort: '-started_at', perPage: 5,
+      filter: 'entry_type = "' + LiftCore.ENTRY_TYPE + '" && ended_at = "" && metadata.state = "active"' });
+    if (r.error || !r.data) storeError = true;
+    else storeRec = r.data.filter(LiftCore.isOpenLift)[0] || null;
+  } else storeError = true;
+  var local = liftGetLocal(), d;
+  try { d = LiftCore.resumeDecision({ store: storeRec, local: local, nowMs: Date.now(), storeError: storeError }); }
+  catch (e) { return; }
+  if (d.action === 'resume' && d.source === 'store' && !local) liftSaveLocalFromStore(d.record, false);
+  else if (d.action === 'stale') {   // stopped at its last checkpoint, never resumed (HRCore.STALE_SEC)
+    if (d.local) {
+      var last = Date.parse(String(d.local.meta.checkpoint_at || '').replace(' ', 'T'));
+      d.local.ended_at = isNaN(last) ? d.local.started_at : last; d.local.pb_id = d.local.pb_id || d.record.id;
+      try { localStorage.setItem(LIFT_KEY, JSON.stringify(d.local)); } catch (e) {}
+    } else if (!local) liftSaveLocalFromStore(d.record, true);
+  }
+  var now = liftGetLocal();
+  if (now && now.ended_at) liftStartRetry();
+  if (liftRunning || hrSessionActive) return;
+  if (now) { if (location.hash === '#home') render(); else location.hash = '#home'; }
+}
+
+// ── TEMPLATES (Q1 (a): archived, never deleted) ──
+function liftRenderTemplate(key) {
+  currentType = 'resistance';
+  if (liftTemplates === null) {
+    document.getElementById('app').innerHTML = liftHeader('LI &middot; TEMPLATE', 'Template', 'Lift', LiftCore.LIFT_ROUTE) + '<div class="empty-state">Loading&hellip;</div>';
+    liftLoad().then(function() { if (location.hash === '#lift/tpl/' + key) liftRenderTemplate(key); });
+    return;
+  }
+  if (!liftEditTpl || liftEditTpl.key !== key) {
+    if (key === 'new') liftEditTpl = { key: 'new', id: null, name: '', lines: [] };
+    else {
+      var src = liftTemplateById(key);
+      if (!src) { navigate(LiftCore.LIFT_ROUTE); return; }
+      liftEditTpl = { key: key, id: src.id, name: src.metadata.name, lines: src.metadata.lines.map(function(l) { return { name: l.name, side: l.side }; }), meta: src.metadata };
+    }
+  }
+  liftPaintTemplate();
+}
+function liftPaintTemplate() {
+  var e = liftEditTpl, n = e.lines.length;
+  var lines = e.lines.map(function(l, i) {
+    return '<div class="tl-row"><span class="tl-row__name"><span style="font:400 11px/1 var(--font-mono);color:var(--ink-dim);min-width:18px">' + (i + 1) + '</span>' + escHtml(l.name) + ' ' + liftSideTag(l.side) + '</span>' +
+      '<span class="tl-row__btns"><button class="ico" aria-label="up" onclick="liftTplMove(' + i + ',-1)"' + (i === 0 ? ' disabled' : '') + '>&uarr;</button>' +
+      '<button class="ico" aria-label="down" onclick="liftTplMove(' + i + ',1)"' + (i === n - 1 ? ' disabled' : '') + '>&darr;</button>' +
+      '<button class="ico" aria-label="remove" onclick="liftTplRemove(' + i + ')">&#10005;</button></span></div>';
+  }).join('') || '<div class="tl-row"><span class="tl-row__name" style="color:var(--ink-dim);font-style:italic">no exercises yet</span></div>';
+  document.getElementById('app').innerHTML = liftHeader('LI &middot; TEMPLATE', e.id ? 'Edit template' : 'New template', 'Lift', LiftCore.LIFT_ROUTE) +
+    '<div class="section">' + liftSecHead('&sect;01', 'Name') + '<div class="field-grid field-grid--1"><label class="cell"><span class="cell__label">WORKOUT NAME</span>' +
+      '<input class="cell__value" id="lift-tpl-name" value="' + escHtml(e.name) + '" placeholder="e.g. Legs Heavy" oninput="liftEditTpl.name=this.value;liftTplFooter()"></label></div></div>' +
+    '<div class="section">' + liftSecHead('&sect;02', 'Exercises', 'in order') + lines + '</div>' +
+    '<div class="section">' + liftSecHead('&sect;03', 'Add an exercise') +
+      '<div class="field-grid field-grid--1"><label class="cell"><span class="cell__label">EXERCISE (YOUR NAME)</span>' +
+      '<input class="cell__value" id="lift-ex-name" placeholder="e.g. Dumbbell Bench" onkeydown="if(event.key===\'Enter\')liftTplAddLine()"></label></div>' +
+      liftLatChips() +
+      '<div style="padding:0 var(--s-9) var(--s-9)"><button class="btn-light" onclick="liftTplAddLine()">+ ADD EXERCISE</button></div></div>' +
+    '<div class="ask"><b>Unilateral adds two lines, L then R</b>, each with its own sets and its side stored. Move either line on its own if you alternate differently.</div>' +
+    '<div class="audit-footer">&middot; editing a template never changes a past session: each session copies its template when it starts' +
+      (e.id ? '<br>&middot; <a href="#" id="lift-tpl-archive" style="color:var(--state-err);display:inline-block;padding:10px 0" onclick="liftTplArchiveArm(this);return false">archive template</a> &mdash; removes it from the picker only; past sessions keep their copy' : '') + '</div>';
+  liftTplFooter();
+}
+function liftTplFooter() {
+  var e = liftEditTpl;
+  liftSaf(liftSafCell('Template', escHtml(e.name.trim() || '—') + ' &middot; ' + e.lines.length + ' lines'),
+          '<button class="btn-primary" id="lift-tpl-save" onclick="liftTplSave()"' + (!e.name.trim() || !e.lines.length ? ' disabled' : '') + '>SAVE TEMPLATE</button>');
+}
+function liftTplMove(i, d) { liftEditTpl.lines = LiftCore.moveLine(liftEditTpl.lines, i, d); liftPaintTemplate(); }
+function liftTplRemove(i) { liftEditTpl.lines.splice(i, 1); liftPaintTemplate(); }
+function liftTplAddLine() {
+  var el = document.getElementById('lift-ex-name'), name = el ? el.value.trim() : '';
+  if (!name) { if (el) el.focus(); return; }
+  liftEditTpl.lines = liftEditTpl.lines.concat(LiftCore.linesFor(name, liftNewLat));   // L9: unilateral = two lines, L then R
+  liftPaintTemplate();
+  var n = document.getElementById('lift-ex-name'); if (n) n.focus();
+}
+async function liftTplSave() {
+  var e = liftEditTpl, btn = document.getElementById('lift-tpl-save');
+  var meta;
+  try { meta = LiftCore.templateMeta(e.name, e.lines, false); } catch (x) { showErr(x.message); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'SAVING…'; }
+  var r;
+  if (e.id) r = await PB.update(e.id, { metadata: meta });
+  else r = await PB.insert(LiftCore.templateRecord(e.name, e.lines, Date.now()));
+  if (r.error || !r.data) {   // Q5: a template is one write, no outbox: without signal it is refused, and said
+    if (btn) { btn.disabled = false; btn.textContent = 'SAVE TEMPLATE'; }
+    showErr('could not save the template (' + ((r.error && r.error.message) || 'no response') + ') -- it needs signal; retry');
+    return;
+  }
+  liftPick.tplId = r.data.id;
+  liftEditTpl = null;
+  await liftLoad();
+  navigate(LiftCore.LIFT_ROUTE);
+}
+function liftTplArchiveArm(a) {
+  if (a.dataset.armed === '1') { liftTplArchive(); return; }
+  a.dataset.armed = '1';
+  a.textContent = 'tap again to archive "' + liftEditTpl.name + '"';
+  setTimeout(function() { if (a && a.isConnected) { a.dataset.armed = ''; a.textContent = 'archive template'; } }, 4000);
+}
+async function liftTplArchive() {
+  var e = liftEditTpl;
+  var r = await PB.update(e.id, { metadata: LiftCore.archiveTemplate(e.meta) });
+  if (r.error) { showErr('could not archive the template (' + (r.error.message || 'refused') + ')'); return; }
+  if (liftPick.tplId === e.id) liftPick.tplId = null;
+  liftEditTpl = null;
+  await liftLoad();
+  navigate(LiftCore.LIFT_ROUTE);
+}
+
+// ── CONFIRM, UNDO, LOG REVIEW ──
+function liftReadableRows(meta) {   // values escaped here: the review and the exercise names are free text
+  var rows = [], push = function(k, v) { rows.push({ k: escHtml(k), v: escHtml(v) }); };
+  push('template', (meta.template && meta.template.name) || '');
+  var sm = null;
+  try { sm = LiftCore.summary(meta); } catch (e) { sm = null; }
+  if (sm) {
+    push('status', sm.status);
+    push('sets', (sm.n_sets - sm.n_skipped) + ' done · ' + sm.n_skipped + ' skipped');
+    push('volume', liftKg(sm.volume_kg) + ' (R×W)');
+  }
+  push('heart rate', ({ strap: 'strap', link: 'linked', none: 'none' }[meta.hr_mode] || '—') + (meta.hr_session_id ? ' · ' + meta.hr_session_id : ''));
+  (meta.exercises || []).forEach(function(e) {
+    var sets = (e.sets || []).map(function(s) {
+      try { var f = LiftCore.filedSet(s); return f.r === 0 && f.w === 0 ? 'skip' : f.w === 0 ? f.r + ' BW' : f.r + '×' + f.w; } catch (x) { return '?'; }
+    });
+    push(e.name + (e.side === 'both' ? '' : ' · ' + e.side) + (e.added ? ' (added)' : ''), sets.join(' · '));
+  });
+  if (meta.review) push('review', meta.review);
+  return rows;
+}
+function liftConfirmHTML(e) {
+  var m = e.metadata || {}, o = liftLastFiled && liftLastFiled.outcome;
+  var rows = (o ? [{ k: 'filing', v: escHtml(o.text) }] : []).concat(liftReadableRows(m).filter(function(r) { return r.k === 'template' || r.k === 'status' || r.k === 'sets' || r.k === 'volume' || r.k === 'heart rate' || r.k === 'review'; }));
+  var all = [], order = 0;
+  (m.exercises || []).forEach(function(x) { (x.sets || []).forEach(function(s, i) { all.push({ o: ++order, ex: x.name, side: x.side, n: i + 1, r: s.r, w: s.w }); }); });
+  return rows.map(function(r) { return '<div class="confirm-row"><span class="confirm-row__key">' + r.k + '</span><span class="confirm-row__val">' + r.v + '</span></div>'; }).join('') +
+    '</div>' +
+    '<div class="section">' + liftSecHead('&sect;02', 'Sets as filed', all.length + ' rows') +
+      '<div class="kt-wrap"><table class="kt"><tr><th>#</th><th>exercise</th><th>side</th><th>set</th><th>R</th><th>W kg</th><th>R&times;W</th><th></th></tr>' +
+      all.map(function(x) {
+        var kind = LiftCore.setKind(x.r, x.w);
+        return '<tr class="' + (kind === 'skipped' ? 'skip' : '') + '"><td class="num">' + x.o + '</td><td>' + escHtml(x.ex) + '</td><td>' + (x.side === 'both' ? '' : x.side) + '</td>' +
+          '<td class="num">' + x.n + '</td><td class="num">' + x.r + '</td><td class="num">' + x.w + '</td><td class="num">' + LiftCore.setVolume(x) + '</td><td>' +
+          (kind === 'skipped' ? 'skip' : kind === 'bodyweight' ? 'BW' : '') + '</td></tr>';
+      }).join('') + '</table></div></div>';
+}
+// §3 Q2: a strap-linked session discards its HR session with it, when this FINISH filed that HR session
+// (one it did not file is on its own path). Returns the refusal in words, or null.
+async function liftUndoLinkedHr(entry) {
+  var m = entry.metadata || {};
+  if (m.hr_mode !== 'strap' || !liftLastFiled || liftLastFiled.outcome.hr_filed !== true) return null;
+  var hrId = m.hr_session_id || liftLastFiled.hrPbId;
+  if (!hrId) return null;
+  var cur = await PB.get(hrId);
+  if (cur.error || !cur.data) return 'the Lift session is discarded; its strap session was not (' + ((cur.error && cur.error.message) || 'no record') + ') -- it is still filed';
+  var u = await PB.update(hrId, { metadata: Object.assign({}, cur.data.metadata || {}, { state: 'discarded' }) });
+  if (u.error) return 'the Lift session is discarded; its strap session was not (' + (u.error.message || 'refused') + ') -- it is still filed';
+  return null;
+}
+// L18 states: discarded -> filed (restore). The file shape is the core's (an active-shape record files through it, L3).
+async function liftRestoreFromReview(id) {
+  var r = await PB.get(id);
+  if (r.error || !r.data) { showErr('could not load the session from the store'); autoHideErr(4000); return; }
+  var body = { metadata: LiftCore.checkpointPayload(r.data.metadata, 'filed', new Date().toISOString()) };
+  if (!r.data.ended_at) body.ended_at = new Date().toISOString();
+  var u = await PB.update(id, body);
   if (u.error) { showErr('could not restore — retry'); autoHideErr(4000); return; }
   render();
 }
