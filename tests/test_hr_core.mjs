@@ -84,6 +84,16 @@ test('checkpointPayload: an est sample in an ACTIVE session is refused (J3); all
   assert.equal(p.duration_sec, 15); assert.equal(p.bpm_avg, 94); assert.equal(p.gap_sec, null);
 });
 
+test('checkpointPayload: lift_session_id passes through when the session carries it, and is ABSENT otherwise (W3b Q3 (c))', () => {
+  const plain = C.checkpointPayload(session(), iso(T0));
+  assert.equal('lift_session_id' in plain, false, 'an HR session not started from Lift carries no lift_session_id key');
+  assert.equal('lift_session_id' in C.checkpointPayload({ ...session(), lift_session_id: null }, iso(T0)), false);
+  const linked = C.checkpointPayload({ ...session(), lift_session_id: 'lift-sid-9' }, iso(T0));
+  assert.equal(linked.lift_session_id, 'lift-sid-9');
+  assert.throws(() => C.checkpointPayload({ ...session(), lift_session_id: 42 }, iso(T0)), /lift_session_id/);
+  assert.throws(() => C.checkpointPayload({ ...session(), lift_session_id: '' }, iso(T0)), /lift_session_id/);
+});
+
 test('checkpointPayload: the payload is a copy — mutating it does not touch the session', () => {
   const s = session(); const p = C.checkpointPayload(s, iso(T0));
   p.samples.push(S(99, 1)); p.rr.push(1);

@@ -6,7 +6,8 @@
  *
  * Contract (JA2_Build_Brief_v1.md §2.1, rulings in the gate record §1):
  *   metadata v2 = { v:2, state, session_id, device, checkpoint_at, missed_ticks,
- *                   exercise_type, samples:[{t,bpm[,est]}], rr:[ms], ...summary }
+ *                   exercise_type, samples:[{t,bpm[,est]}], rr:[ms], ...summary
+ *                   [, lift_session_id] }   (W3b: only on a strap session started from Lift)
  *   states: active -> stopped -> filed ; any -> discarded. Nothing deletes.
  */
 var HRCore = (function () {
@@ -85,6 +86,12 @@ var HRCore = (function () {
       samples: samples,
       rr: (session.rr || []).slice(),
     };
+    // W3b (Q3 (c), L15): a strap session started from Lift names its Lift session, so the view can
+    // resolve the link from this side when the Lift record never learned this record's id. Absent otherwise.
+    if (session.lift_session_id !== undefined && session.lift_session_id !== null) {
+      if (typeof session.lift_session_id !== 'string' || !session.lift_session_id) throw new Error('checkpointPayload: lift_session_id must be a session id');
+      out.lift_session_id = session.lift_session_id;
+    }
     SUMMARY_KEYS.forEach(function (k) {
       out[k] = (session.summary && session.summary[k] !== undefined) ? session.summary[k] : null;
     });

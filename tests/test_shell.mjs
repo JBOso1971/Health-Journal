@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
@@ -16,6 +17,28 @@ test('hr-core.js exists and index.html loads it BEFORE the app script', () => {
   assert.ok(tag > 0, 'index.html does not load hr-core.js');
   const appScript = html.indexOf('<script>', tag);
   assert.ok(appScript > tag, 'the app <script> must follow the hr-core.js tag');
+});
+
+// W3b S3: the Lift core ships as a file of its own; index.html loads it and sw.js caches it at S4 (the load /
+// SW assertions land with that wiring: S3 changes no index.html, W3b gate record C-4).
+test('lift-core.js exists and is a pure core: no DOM, storage, network, clock, randomness, timer or delete of its own', () => {
+  const p = join(ROOT, 'lift-core.js');
+  assert.ok(existsSync(p), 'lift-core.js is missing');
+  const code = readFileSync(p, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'])\/\/.*$/gm, '$1');   // comments may NAME these
+  for (const [re, what] of [[/\bdocument\b/, 'document'], [/\bwindow\b/, 'window'], [/\blocalStorage\b/, 'localStorage'],
+                            [/\bfetch\(/, 'fetch('], [/Date\.now\(/, 'Date.now('], [/new Date\(\s*\)/, 'new Date()'],
+                            [/Math\.random\(/, 'Math.random('], [/\bcrypto\b/, 'crypto'], [/\bnavigator\b/, 'navigator'],
+                            [/\bset(Timeout|Interval)\(/, 'a timer'], [/\.remove\(/, 'a DELETE (.remove()'], [/\bPB\./, 'the app\'s PB client']]) {
+    assert.doesNotMatch(code, re, 'lift-core.js uses ' + what);
+  }
+  assert.match(code, /require\('\.\/hr-core\.js'\)/, 'lift-core.js must reuse hr-core.js, not re-implement it');
+});
+
+test('L17: the HR type Lift fixes is one the HR screen offers (the named type EXISTS in index.html)', () => {
+  const L = createRequire(import.meta.url)('../lift-core.js');
+  const types = html.match(/\[('Cardio'[^\]]*)\]\.map\(function\(t\)/);
+  assert.ok(types, 'the HR type list was not found in index.html');
+  assert.ok(types[1].split(',').map(s => s.trim().replace(/'/g, '')).includes(L.HR_EXERCISE_TYPE), L.HR_EXERCISE_TYPE + ' is not an HR type');
 });
 
 test('sw.js caches hr-core.js in the shell and the cache version is past v7', () => {
